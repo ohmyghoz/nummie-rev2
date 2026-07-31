@@ -1,6 +1,22 @@
 # ADR-0022 — Auth ortu: kode sekali pakai lewat email, tanpa password
 
-**Status:** ✅ diputuskan 30 Juli 2026 · menggantikan sign-in password di app ortu ·
+> ## ❌ DIBATALKAN 31 Juli 2026 oleh [ADR-0023](0023-auth-ortu-email-password.md)
+>
+> Diganti **email + password + alur reset, pendaftaran publik terbuka**.
+>
+> **Kenapa dibatalkan, bukan diperbaiki:** ADR ini benar saat ditulis. Seluruh argumennya berdiri
+> di atas satu fakta — **pendaftaran tertutup** — dan fakta itu sudah lewat. `create_user: false`
+> berubah dari gerbang jadi penghalang begitu pintunya dibuka.
+>
+> **Berkas ini sengaja tidak dihapus.** Bagian *Kenapa KODE, bukan magic link* adalah analisis
+> konteks-browser PWA yang masih berlaku dan dipakai ulang ADR-0023 untuk tautan reset password.
+> Bagian *Yang ikut dibangun: ganti PIN anak* mendokumentasikan `set_child_pin()` (migrasi 0018)
+> yang **masih hidup dan masih dipakai**.
+>
+> Baca sisanya sebagai riwayat: ia menjelaskan kenapa jalan yang kelihatan wajar itu pernah
+> ditutup, dan syarat apa yang membukanya kembali.
+
+**Status:** ❌ dibatalkan 31 Juli 2026 (lihat di atas) · diputuskan 30 Juli 2026 ·
 melengkapi [ADR-0012](0012-auth-anak-kode-keluarga-pin.md) (yang mengatur sisi anak)
 
 ## Konteks — apa yang sebenarnya rusak
