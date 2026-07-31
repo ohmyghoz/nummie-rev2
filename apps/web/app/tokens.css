@@ -1,0 +1,160 @@
+/* ============================================================================
+   TOKEN DESAIN — diekstrak dari mockup, bukan dirancang di sini.
+   Sumber: reference/mockup-source/ (hasil `pnpm mockups:unpack`).
+
+   Setiap nilai di berkas ini punya alamat. Kalau sebuah nilai tidak bisa
+   ditunjuk ke baris di sebuah mockup, ia tidak boleh ada di sini.
+   Menambah warna "supaya lengkap" adalah cara repo lama mulai menyimpang.
+
+   DUA LAPIS, dan pembagiannya bukan selera:
+
+     :root              → yang TERBUKTI sama di keempat permukaan
+     [data-surface=…]   → yang memang berbeda per permukaan
+
+   Perbedaan itu sebagian disengaja oleh mockup (console memilih rail gelap
+   supaya tangkapan layar internal tidak disangka layar produk —
+   console.source.html:16), dan sebagian adalah konflik yang belum diputuskan
+   (MR-7: warna kategori ortu ≠ anak). Keduanya dipisahkan di bawah supaya
+   tidak tertukar.
+   ============================================================================ */
+
+:root {
+  /* ---- Brand grape: identik di keempat permukaan (diperiksa dengan grep) ---- */
+  --brand: #6C4CE0;
+  --brand-deep: #4A32A8;
+  --brand-lite: #8A6BFF;
+  --brand-tint: #EDE7FC;
+  --brand-grad: linear-gradient(135deg, #8A6BFF, #6C4CE0);
+
+  /* ---- Tipografi ----
+     Fredoka = angka besar & wordmark saja. Plus Jakarta Sans = UI.
+     Aturannya dari console.source.html:16; bobot yang benar-benar dimuat mockup
+     ada di reference/mockup-source/*.fonts.html (400/500/600/700/800).
+     JetBrains Mono hanya dipakai console. */
+  --display: var(--font-fredoka), 'Fredoka', sans-serif;
+  --ui: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --mono: ui-monospace, 'JetBrains Mono', monospace;
+
+  /* ---- Radius & bayangan (console.source.html:40) ---- */
+  --r-lg: 18px;
+  --r-md: 13px;
+  --r-sm: 9px;
+  --sh-1: 0 1px 2px rgba(34, 28, 66, .05);
+  --sh-2: 0 4px 18px rgba(34, 28, 66, .08);
+  --sh-3: 0 20px 60px rgba(34, 28, 66, .26);
+
+  /* ---- Warna status: hanya console yang mendefinisikannya (:root, baris 33) ---- */
+  --ok: #1F9D63;        --ok-bg: #E1F6EC;
+  --warn: #B77908;      --warn-bg: #FFF3D7;
+  --risk: #B5473C;      --risk-bg: #FCE8EA;
+  --learn: #2266B5;     --learn-bg: #E7F0FB;
+  --sun: #FFB020;
+}
+
+/* ============================================================================
+   TEMA ANAK — kid-mobile.source.jsx:15-21 (objek `themes`).
+   Mockup anak punya penukar tema; grape adalah bawaannya. Kelimanya diekstrak
+   supaya penukar itu bisa diport apa adanya di Tahap 1, bukan dipangkas diam-diam.
+   ============================================================================ */
+
+[data-theme='grape']  { --theme: #6C4CE0; --theme-deep: #4A32A8; --theme-lite: #8A6BFF; --theme-tint: #EDE7FC; --theme-grad: linear-gradient(135deg, #8A6BFF, #6C4CE0); }
+[data-theme='ocean']  { --theme: #0E8FB0; --theme-deep: #0A6C86; --theme-lite: #3FB6D4; --theme-tint: #DFF3F8; --theme-grad: linear-gradient(135deg, #3FB6D4, #0E8FB0); }
+[data-theme='mint']   { --theme: #12A874; --theme-deep: #0C7C55; --theme-lite: #3FCB98; --theme-tint: #DDF5EB; --theme-grad: linear-gradient(135deg, #3FCB98, #12A874); }
+[data-theme='sunset'] { --theme: #EE6A3B; --theme-deep: #C24E24; --theme-lite: #FF9166; --theme-tint: #FDE8DF; --theme-grad: linear-gradient(135deg, #FF9166, #EE6A3B); }
+[data-theme='berry']  { --theme: #D6336C; --theme-deep: #A31E52; --theme-lite: #F05C90; --theme-tint: #FBE1EB; --theme-grad: linear-gradient(135deg, #F05C90, #D6336C); }
+
+/* ============================================================================
+   PERMUKAAN /kid — kid-mobile.source.jsx:4-13 (objek `C`)
+   ============================================================================ */
+
+[data-surface='kid'] {
+  --canvas: #EEEAF6;
+  --surface: #FFFFFF;
+  --surface-2: #F7F4FD;
+  --line: #EBE6F5;
+  --ink: #2A2342;
+  --ink-soft: #736C8C;
+  --track: #ECE7F7;
+  --loss: #D64550;
+  --loss-tint: #FCE8EA;
+
+  /* Warna kategori kanonik (AGENTS.md §2). Anak & console memakai yang ini. */
+  --spend: #FF7A4D;    --spend-tint: #FFEDE5;  --spend-deep: #C24E24;
+  --save: #2CA6E0;     --save-tint: #E2F2FB;   --save-deep: #1B6E97;
+  --give: #F056A0;     --give-tint: #FCE6F1;   --give-deep: #B62C74;
+  --grow: #2FC078;     --grow-tint: #E1F6EC;   --grow-deep: #1B7A4B;
+  --unsorted: #8A7CF0; --unsorted-tint: #ECE9FC;
+
+  /* `bgTeen: #EFF1F7` sengaja TIDAK dibawa — Teen di luar cakupan (ADR-0020). */
+}
+
+/* ============================================================================
+   PERMUKAAN /parent & /parent-web — parent-mobile.markup.html + .source.jsx
+   Kedua permukaan ortu berbagi palet yang sama persis (dicek dengan grep:
+   hitungan hex-nya cocok satu per satu antara parent-mobile dan parent-web).
+   ============================================================================ */
+
+[data-surface='parent'] {
+  --canvas: #F1EFF9;
+  --surface: #FFFFFF;
+  --surface-2: #F7F5FD;
+  --surface-3: #F0ECF9;
+  --line: #E7E2F3;
+  --ink: #1E1A38;
+  --ink-2: #4C4869;
+  --ink-soft: #7A7596;
+  --track: #D3CBF5;
+  --loss: #D64550;
+
+  /* ⚠️ KONFLIK MR-7 — BELUM DIPUTUSKAN, jangan "dirapikan" jadi nilai kanonik.
+     Permukaan ortu memakai warna kategori yang BERBEDA dari anak & console,
+     dan kedua himpunan tidak beririsan sama sekali:
+
+         Spend  #F59E4C  (anak: #FF7A4D)
+         Save   #4C9EE8  (anak: #2CA6E0)
+         Give   #ED6FA5  (anak: #F056A0)
+         Uns.   #A99BD6  (anak: #8A7CF0)
+
+     Sumber: parent-mobile.source.jsx:512 & :711.
+
+     Nilai di bawah adalah apa yang mockup benar-benar tampilkan — mockup menang
+     (AGENTS.md §0), dan menyeragamkannya diam-diam berarti memilih pemenang
+     tanpa Ghozy. Begitu MR-7 diputuskan, blok ini dihapus dan warna kategori
+     naik ke :root. Duduk perkaranya: docs/mockup-review.md §MR-7. */
+  --spend: #F59E4C;
+  --save: #4C9EE8;
+  --give: #ED6FA5;
+  --unsorted: #A99BD6;
+}
+
+/* ============================================================================
+   PERMUKAAN /console — console.source.html:21-45 (:root aslinya)
+   Rail gelapnya SENGAJA berbeda dari app ortu; alasannya ditulis di mockupnya
+   sendiri (baris 16-18): operator melihat lintas-keluarga, dan pembeda visual
+   mencegah tangkapan layar internal disangka layar produk. Jangan diseragamkan.
+   ============================================================================ */
+
+[data-surface='console'] {
+  --canvas: #F4F2FA;
+  --surface: #FFFFFF;
+  --surface-2: #FAF8FE;
+  --surface-3: #F2EFFB;
+  --ink: #221C42;
+  --ink-2: #4F4865;
+  --ink-3: #7A7596;
+  --ink-4: #A9A3BE;
+  --ink-soft: #7A7596;
+  --line: #E7E2F3;
+  --line-2: #F1EDFA;
+
+  --rail-1: #241C46;
+  --rail-2: #1A1533;
+  --rail-line: rgba(255, 255, 255, .09);
+
+  /* Warna kategori kanonik — sama dengan /kid (lihat MR-7). */
+  --spend: #FF7A4D;    --spend-tint: #FFEDE5;
+  --save: #2CA6E0;     --save-tint: #E2F2FB;
+  --give: #F056A0;     --give-tint: #FCE6F1;
+  --grow: #2FC078;     --grow-tint: #E1F6EC;
+  --unsorted: #8A7CF0; --unsorted-tint: #ECE9FC;
+}

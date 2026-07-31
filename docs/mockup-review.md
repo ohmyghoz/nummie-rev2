@@ -17,9 +17,10 @@
 | | |
 |---|---|
 | Dibuka | 31 Juli 2026 (Tahap 0) |
-| Terbuka | 6 (MR-1 … MR-6) |
+| Terbuka | 7 (MR-1 … MR-7) |
 | Diputuskan | 0 |
-| **Perlu diputuskan sebelum Tahap 1 mulai** | **MR-6** |
+| **Perlu diputuskan sebelum Tahap 1 mulai** | **MR-6** (layar login anak) · **MR-2** (format rupiah) |
+| Sudah memaksa keputusan teknis sementara | MR-7 (token warna dipasang per permukaan) |
 
 ---
 
@@ -59,6 +60,46 @@ Artinya layar login `/kid` harus **dirancang**, bukan diport. Rencana Tahap 1 no
 seolah tinggal menyalin.
 
 **Pertanyaan untuk Ghozy:** anak masuk pakai email ortu (mockup) atau kode keluarga (ADR-0012)?
+
+---
+
+## MR-7 · Warna kategori permukaan ortu berbeda dari anak & console
+
+**Bukti:** `parent-mobile.source.jsx:512` dan `:711` (sama persis di `parent-web.source.jsx`):
+
+```js
+const SPCATS = [{id:'spend',color:'#F59E4C'},{id:'save',color:'#4C9EE8'},{id:'give',color:'#ED6FA5'}];
+```
+
+Bandingkan dengan `kid-mobile.source.jsx:7` dan `console.source.html:27`:
+
+| Kategori | anak + console | **ortu (HP & web)** |
+|---|---|---|
+| Spend | `#FF7A4D` | `#F59E4C` |
+| Save | `#2CA6E0` | `#4C9EE8` |
+| Give | `#F056A0` | `#ED6FA5` |
+| Unsorted | `#8A7CF0` | `#A99BD6` |
+
+**Kedua himpunan tidak beririsan sama sekali.** `#FF7A4D` muncul 0 kali di kedua berkas ortu;
+`#F59E4C` muncul 0 kali di anak maupun console. Ini bukan pergeseran satu-dua nilai.
+
+Yang membuatnya konflik, bukan sekadar variasi:
+
+- **AGENTS.md §2** menetapkan satu himpunan token warna untuk seluruh repo:
+  *"Spend `#FF7A4D` · Save `#2CA6E0` · Give `#F056A0` · Grow `#2FC078`"*.
+- **`console.source.html:14`** mendaftarkannya sebagai aturan yang diwarisi dan **tidak diubah**:
+  *"Warna kategori semantik: Spend/Save/Give/Grow **tetap**."*
+
+Jadi console menyatakan sedang mematuhi aturan bersama — dan permukaan ortu diam-diam tidak.
+
+**Konsekuensi langsung:** ortu dan anak melihat kantong yang sama dengan warna berbeda. Padahal
+warna kategori adalah bahasa bersama produk ini: seluruh gunanya justru supaya "yang oranye itu
+Spend" berlaku saat ortu dan anak menatap layar bersama.
+
+**Sudah memaksa keputusan teknis di Tahap 0.** `apps/web/app/tokens.css` tidak bisa menaruh satu
+`--spend` di `:root` lalu menyebutnya bersama — itu berarti diam-diam memilih satu pemenang.
+Token warna kategori karena itu dipasang **per permukaan**, dan konflik ini ditulis apa adanya di
+dalam berkas CSS-nya. Begitu MR-7 diputuskan, satu lapis dihapus dan nilainya naik ke `:root`.
 
 ---
 
