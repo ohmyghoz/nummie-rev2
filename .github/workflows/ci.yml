@@ -11,9 +11,20 @@
 
 name: CI
 
+# `push` dibatasi ke `main` DENGAN SENGAJA. Versi pertama memakai `branches: ['**']` bersama
+# `pull_request`, dan hasilnya terlihat begitu PR #1 dibuka: commit 7437c8d menjalankan CI
+# DUA KALI — sekali dari push, sekali dari PR, pada SHA yang sama persis. Delapan job untuk
+# empat pemeriksaan.
+#
+# `concurrency` di bawah tidak menolong: push dan pull_request punya `github.ref` berbeda, jadi
+# keduanya masuk grup berbeda dan tidak saling membatalkan.
+#
+# Bentuk sekarang: branch diperiksa lewat PR-nya, `main` diperiksa saat digabung. Konsekuensinya
+# diambil sadar — push ke branch yang **belum** punya PR tidak menjalankan CI. Repo ini bekerja
+# branch → PR, jadi jendela itu pendek, dan `pnpm test` di mesin sendiri tetap gerbang pertama.
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
 
 concurrency:
