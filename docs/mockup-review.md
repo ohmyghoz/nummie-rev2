@@ -115,6 +115,25 @@ Jadi dua permukaan produk memakai dua format berbeda hari ini, dan yang dipakai 
 yang secara eksplisit dilarang. Ini konflik paling tajam di daftar ini: biasanya mockup dan
 dokumen sekadar berbeda — di sini dokumennya sudah menolak duluan.
 
+**Ongkos kedua pilihan tidak seimbang, dan itu yang membuatnya mudah diputuskan.**
+`packages/core/src/money.ts` sudah memuat jawabannya, teruji di `test/money.test.ts`:
+
+```ts
+formatRp(50_000)      // 'Rp50.000'    ← bentuk brand, sudah jalan
+formatRpInput('50000') // '50.000'     ← pemisah ribuan live, persis Tahap 1 no.5
+```
+
+`packages/core/README.md` menyebut `formatRp()` **"satu-satunya cara menampilkan nominal"**.
+
+| Pilihan | Yang harus dikerjakan |
+|---|---|
+| Format brand (`Rp50.000`) | buang `rp()` mockup, panggil `formatRp()` — engine & testnya sudah ada |
+| Format mockup (`Rp 10,000`) | **mengubah `packages/core`** + membalik 4 assert test + melanggar brand system |
+
+Mengubah `packages/core` butuh persetujuan (AGENTS.md §8), sementara memakainya tidak butuh apa
+pun. AGENTS.md §6 tetap menyerahkan keputusan finalnya kepada Ghozy — tapi satu cabang gratis dan
+satu cabang mahal.
+
 **Perlu diputuskan sebelum Tahap 1 no.5** (Add/Move money memakai pemisah ribuan **live saat
 mengetik**) — pemformat yang salah pilih akan disalin ke setiap kolom input.
 

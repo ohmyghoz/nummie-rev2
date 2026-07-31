@@ -1,0 +1,25 @@
+{
+  "name": "nummi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nummi — celengan digital yang dipakai bersama anak dan orang tua. Rebuild: engine diselamatkan, UI dibangun ulang dari mockup.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "test": "pnpm --filter @nummi/core test",
+    "typecheck": "pnpm -r typecheck",
+    "dev": "pnpm --filter @nummi/web dev",
+    "build": "pnpm --filter @nummi/web build",
+    "start": "pnpm --filter @nummi/web start",
+    "mockups:unpack": "node tools/unpack-mockups.mjs",
+    "regions:build": "node tools/build-regions.mjs",
+    "seed:dev": "node tools/seed-dev.mjs"
+  },
+  "devDependencies": {
+    "idn-area-data": "4.0.1",
+    "typescript": "^5.5.0"
+  }
+}

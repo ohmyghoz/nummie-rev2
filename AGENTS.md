@@ -37,7 +37,7 @@ otomatis · Rapor Literasi · Growth Reward · paywall · slot iklan.
 nummi/
 ├── AGENTS.md · nummi-web-plan.md
 ├── reference/mockups/        ← 4 HTML mockup, READ-ONLY, sumber kebenaran UI
-├── packages/core/            ← TRANSPLANTASI dari repo lama (ledger engine, 172 test) — jangan tulis ulang
+├── packages/core/            ← TRANSPLANTASI dari repo lama (ledger engine, 223 test) — jangan tulis ulang
 ├── supabase/                 ← TRANSPLANTASI: migrasi 0001–0018 + Edge Function child-login
 ├── docs/decisions/           ← TRANSPLANTASI: ADR (lihat §5 mana yang batal)
 ├── docs/mockup-review.md     ← daftar konflik mockup-vs-dokumen untuk ditinjau Ghozy
@@ -114,7 +114,7 @@ nummi/
 - Perintah khusus: `merge` = perbarui handoff · `tambah backlog` = perbarui backlog ·
   `audit` = periksa lintas-berkas, laporkan kontradiksi baru.
 - Percakapan & dokumen: **Indonesia**. String UI: **Inggris**.
-- Selesai tahap = Definisi Selesai `nummi-web-plan.md` + `npm test` hijau (termasuk I1) +
+- Selesai tahap = Definisi Selesai `nummi-web-plan.md` + `pnpm test` hijau (termasuk I1) +
   verifikasi berdampingan seluruh layar tahap itu.
 
 ## 8. Yang DILARANG
