@@ -1,166 +1,117 @@
-# Laporan progres — 31 Juli 2026
+# Laporan progres — 1 Agustus 2026
 
-Keadaan repo `nummie-rev2` per akhir sesi pertama. Branch
-`claude/tahap-0-planning-readme-68soyl`, **14 commit**.
+Sesi ini menyambung dari Tahap 0 (selesai & dicentang 31 Juli — lihat riwayat git untuk
+laporan lama). Ghozy minta Tahap 1 & 2 dikerjakan semalam, tanpa pengawasan. Dikerjakan sejauh
+protokol AGENTS.md §3 (ekstrak → inventaris → port → verifikasi berdampingan) memungkinkan
+dalam satu sesi — **bukan keduanya selesai**, dan berkas ini bilang persis sejauh mana.
 
-> **Ringkas:** seluruh **kode** Tahap 0 selesai dan terverifikasi sejauh yang bisa diverifikasi
-> tanpa kredensial. Yang tersisa dari Tahap 0 bukan pekerjaan — melainkan **11 langkah
-> pembuktian** yang butuh project Supabase & Vercel milik Ghozy. Tahap 1 sudah punya pijakan
-> (inventaris 4 layar) dan **tidak diblokir keputusan apa pun.**
-
----
-
-## 1. Sudah selesai & terbukti
-
-Semua di bawah bisa dijalankan ulang siapa pun, kapan pun, tanpa kredensial.
-
-### Gerbang yang hijau hari ini
-
-| Perintah | Hasil |
-|---|---|
-| `pnpm test` | **223 passed** / 16 berkas — termasuk invarian I1 |
-| `pnpm typecheck` | 2 paket bersih (`packages/core`, `apps/web` + `data/regions`) |
-| `pnpm build` | Next build hijau, 4 route |
-| `pnpm regions:build` | 38 provinsi, 514 kab/kota |
-| `pnpm mockups:unpack` | 3 bundle dibuka, 1 HTML disalin |
-| `pnpm inventory:check` | 22 jangkar inventaris cocok |
-| `./tools/verify-migrations.sh` | **0001–0022 jalan bersih di Postgres 16 sungguhan** + 3 blok uji perilaku |
-
-### Yang dibangun
-
-| Area | Isi |
-|---|---|
-| **Engine** | `packages/core` ditransplantasi utuh — 223 test, tidak disentuh |
-| **Database** | 22 migrasi. Tiga baru di Tahap 0 (**0019** profil ortu · **0020** trigger sign up · **0021** aturan PIN saat anak dibuat), satu dari keputusan MR-6 (**0022** login lewat email ortu) |
-| **Web** | `apps/web` — Next App Router, 4 route placeholder, middleware `noindex`, 4 header keamanan, token desain diekstrak dari mockup |
-| **Mockup** | `reference/mockups/` (read-only) + `reference/mockup-source/` (generated, bisa di-grep) |
-| **Keputusan** | 24 ADR. **ADR-0023** auth ortu email+password (membatalkan 0022) · **ADR-0024** login anak email ortu (mengamandemen 0012) |
-| **Data** | Dataset wilayah statis, atribusi ODbL terpasang |
-| **Alat** | `unpack-mockups` · `build-regions` · `seed-dev` · `verify-migrations` · `check-inventory` |
-| **CI** | 4 job GitHub Actions — build · migrasi · sinkronisasi berkas generated · kebocoran kunci |
-| **Dokumen** | `README.md` · `DEPLOY.md` baru (lama diarsipkan) · `mockup-review.md` · 4 inventaris layar |
-
-### Tiga cacat yang ditemukan dan ditutup
-
-Ketiganya nyata, bukan hipotetis — dua di antaranya dibuktikan lolos di database tanpa perbaikan.
-
-1. **`grep` ke mockup gagal DIAM.** Tiga mockup adalah bundle React; pencarian yang memuat kutip
-   ganda mengembalikan **negatif palsu**. Protokol AGENTS.md §3a secara harfiah tidak bisa
-   dipatuhi — sesi yang patuh mencari, tidak menemukan, lalu mengarang. → alat unpack + hasilnya
-   ikut di-commit.
-2. **`create_family()` tidak pernah ada.** Sign up publik tidak punya apa pun untuk dipanggil;
-   ortu akan mendarat di app yang tidak mengenalnya, `auth_family_id()` null, setiap policy gagal
-   tertutup, **tanpa satu pun pesan galat**. → migrasi 0020.
-3. **`create_child()` tidak menegakkan aturan PIN.** 6 digit + unik per keluarga ditegakkan saat
-   PIN *diganti*, bocor saat PIN *dibuat* — arah yang terbalik, karena pembuatan adalah jalur
-   onboarding. Akibatnya bukan login tertukar melainkan **dua anak terkunci permanen** dari
-   uangnya sendiri. → migrasi 0021.
+> **Ringkas:** empat layar `/kid` (login · Home · Sort · Wallets) hidup di atas Supabase
+> sungguhan, diverifikasi berdampingan di browser, bukan cuma lolos `tsc`. Layar `/kid` lain
+> (8 area) dan seluruh Tahap 2 (`/parent`) **belum disentuh**. Dua cacat produksi nyata
+> ditemukan & ditutup di jalan (CORS Edge Function, resolusi modul webpack) — keduanya akan
+> menggigit siapa pun yang mencoba deploy tanpanya, bukan cuma sesi ini.
 
 ---
 
-## 2. Menanti kredensial — **11 langkah**
+## 1. Yang hidup & terverifikasi berdampingan
 
-Tidak ada pekerjaan koding di sini. Ini pembuktian, dan hanya bisa dilakukan di project milikmu.
-Runbook lengkap: [`DEPLOY.md`](DEPLOY.md) §3.
+Bukan "lolos typecheck" — ini dicoba di `pnpm dev` + Chrome, dengan keluarga `seed:dev`
+(`dev-parent@nummi.local` / PIN `135790`), dan hasilnya dicocokkan ke `docs/inventory/*.md`.
 
-| # | Langkah | Bukti yang dicari |
+| Layar | Sumber | Bukti |
 |---|---|---|
-| 1 | `supabase db push` | 0001–0022 jalan bersih |
-| 2 | `supabase functions deploy child-login` | fungsi ACTIVE |
-| 3 | `NUMMI_SEED_PROJECT_REF=<ref> pnpm seed:dev` | 1 baris di `families`/`parents`/`parent_profiles` |
-| 4 | Periksa `family_code` | 6 karakter, tanpa `0 O 1 I L 5 S` |
-| 5 | Sign up ortu lewat app | tiga baris lahir dari trigger, bukan kode app |
-| 6 | **Login anak: email ortu + PIN** | ⚠️ bentuk paling baru — **belum pernah** jalan di Supabase mana pun |
-| 6b | Login dengan email **ortu kedua** | juga berhasil (ADR-0024) |
-| 7 | Login ortu email+password | masuk tanpa verifikasi email lebih dulu |
-| 8 | Lupa password → email → set baru | **ini yang membuktikan SMTP hidup** |
-| 9 | Buat anak dengan PIN 4 digit | **ditolak** — kalau lolos, 0021 belum masuk |
-| 10 | Buat anak kedua PIN sama | **ditolak** — sama |
-| 11 | Deploy Vercel | 4 route 200 + `X-Robots-Tag` |
+| **Login `/kid`** | dirancang (T1.1, tidak ada di mockup) | login sungguhan lewat `child-login`, token tersimpan, sesi bertahan |
+| **Shell** | `kid-shell.md` | bottom nav, FAB `＋ Money`, push screen, toast, ring — semua diport, dipakai layar lain |
+| **Home** | `kid-home.md` | render dari `wallet_balances`/`children`/`money_rules` nyata; banner Unsorted **muncul-hilang** sesuai saldo (diuji: hilang setelah Sort) |
+| **Sort** (DEVIASI D-B) | `kid-sort.md` | rasio **40/40/20 dari `money_rules` keluarga**, bukan teks mati — diuji: Rp50.000 → Rp20.000/Rp20.000/Rp10.000, persis rasio DB |
+| **Wallets** | `kid-wallets.md` | akordeon (satu terbuka sekaligus), kartu kantong, cacah nyata (bukan "3 envelopes" mati) |
 
-Langkah 9 & 10 sekaligus jadi cara memastikan migrasinya benar-benar terpasang: keduanya
-**terbukti lolos** di database tanpa 0021.
+**Alur uang nyata yang sudah dibuktikan jalan, ujung ke ujung:** anak login → lihat Rp50.000 di
+Unsorted → buka Sort → konfirmasi → ledger tertulis lewat `POST /api/kid/sort` → saldo
+Spend/Save/Give ter-update → Home & Wallets menampilkan angka baru tanpa refresh manual.
 
-### Kenapa tidak bisa diakali di sesi ini
+## 2. Dua cacat produksi ditemukan & ditutup
 
-Sudah dicoba, bukan diasumsikan:
+Sama seperti laporan T0 — ditemukan karena dicoba sungguhan, bukan dibaca kodenya.
 
-| Jalan | Hasil |
-|---|---|
-| Supabase lokal via Docker | daemon jalan, **tarikan image 403** (network policy) |
-| Uji Edge Function via Deno | Deno tidak terpasang, dan `deno.land` + `jsr.io` **diblokir** |
+1. **`child-login` Edge Function tidak punya CORS.** Berhasil dipanggil `curl` (server-to-server,
+   Tahap 0), tapi gagal diam-diam dari browser sebagai `TypeError: Failed to fetch` — preflight
+   `OPTIONS` tidak ditangani. **Ini bukan cuma masalah dev lokal**: origin Vercel selalu beda dari
+   origin Supabase, jadi produksi akan kena juga. Ditutup: header CORS + handler `OPTIONS`,
+   di-deploy ulang (`child-login` sekarang versi 6).
+2. **Import gaya NodeNext (`./x.js`) di `@core`/`copy/` lolos `tsc` tapi mati di webpack Next.**
+   `moduleResolution: bundler` milik `tsc` cukup toleran; bundler Next tidak, sampai diberi tahu
+   `resolve.extensionAlias` di `next.config.mjs`. Tanpa ini: build lolos typecheck, lalu halaman
+   kosong di runtime dengan `Module not found` di console — persis kelas kegagalan yang sudah
+   diperingatkan `docs/DEPLOY.md` untuk masalah serupa (`outputFileTracingRoot`).
 
-Yang **bisa** dilakukan sudah dilakukan: migrasi diverifikasi di Postgres 16 sungguhan dengan stub
-skema `auth`, termasuk perilaku sign up, aturan PIN, RLS, dan pencarian anak lewat email ortu.
+Keduanya baru kelihatan begitu ada layar yang **sungguhan** memanggil `@copy`/`@core` dan Edge
+Function dari browser — sebelum sesi ini, tidak ada satu pun kode aplikasi yang melakukannya.
 
-**Batas yang jujur:** Postgres lokal bukan Supabase. Yang belum terbukti adalah trigger dipanggil
-Supabase Auth sungguhan, pengiriman email, perilaku `service_role` di PostgREST, dan Edge Function
-(yang tidak bisa dijalankan tanpa Deno). Karena itu **Definisi Selesai T0 belum dicentang.**
+## 3. Arsitektur baru: siapa yang boleh menulis ledger
 
----
+`packages/core` murni fungsi (menghitung rencana, tidak pernah menyentuh DB — `sortPlan()`,
+`movePlan()`, dst. sengaja begitu). Tidak ada RPC Postgres untuk Sort/Move/dll (beda dengan
+`create_child`, yang memang ada). Jalur yang dipakai, dan alasannya:
 
-## 3. Keputusan — tidak ada yang menggantung
+1. Klien mengirim token anak ke **route handler Next.js** (`/api/kid/sort`), bukan langsung ke Postgres.
+2. Route handler memverifikasi identitas dengan memasang token itu sebagai `accessToken` pada
+   client sekali-pakai lalu memanggil `auth_child_id()` — **Postgres/PostgREST sendiri yang
+   memvalidasi tanda tangan JWT**, bukan server Next.js. Ini sengaja: `CHILD_JWT_SECRET` menurut
+   `docs/DEPLOY.md` §2 tidak boleh dipasang di Vercel, jadi server Next.js tidak pernah mendekode
+   token itu sendiri.
+3. Setelah identitas terverifikasi, route handler menghitung ulang `sortPlan()` dari data
+   **server** (bukan payload klien) dan menulis `ledger_entries` pakai `SUPABASE_SECRET_KEY`
+   (service role) — satu-satunya jalan sejak migrasi 0009 mencabut hak tulis langsung `authenticated`.
 
-Tujuh konflik mockup ditemukan, semuanya terjawab. **Nol yang memblokir Tahap 1.**
+Pola ini (`apps/web/lib/kid/server.ts`) dipakai ulang untuk Move/Cash-out/Give/Grow nanti — sudah
+teruji lewat Sort, tinggal disalin bentuknya.
 
-| Diputuskan Ghozy | Hasil |
-|---|---|
-| **MR-6** login anak | **email ortu + PIN** (mockup menang atas ADR-0012) |
-| **MR-2** format rupiah | **`Rp50.000`** — `formatRp()` dari core |
-| **MR-7** warna kategori | **seragam** ke nilai kanonik anak & console |
-| **MR-3** ragam Inggris | **Amerika** |
+## 4. Simplifikasi & keputusan yang diambil sendiri (dicatat, bukan disembunyikan)
 
-Tiga lagi (MR-1, MR-4, MR-5) ternyata sudah dijawab AGENTS.md sebelum sempat ditanyakan.
+Karena tidak ada Ghozy untuk ditanya semalam, beberapa hal diputuskan sendiri mengikuti pola
+yang sudah ada di inventaris/AGENTS.md, bukan ditebak bebas:
 
-Menulis inventaris memunculkan tiga temuan tambahan — **MR-8** (layar Sort mockup hanya
-mengimplementasikan mode Strict, sementara Flexible yang jadi default tidak pernah digambar) ·
-**MR-9** (format nominal ketiga, `Rp 300k`) · **MR-10** (empat elemen digambar tanpa handler).
-Tidak ada yang butuh keputusan sekarang; MR-10 dijawab saat layar Wallets diport.
+- **Grow di Wallets**: kartu instrumen ditampilkan (saldo, tombol Harvest) **tanpa** simulasi
+  bunga/spread harian (`daily_prices`) — itu porsi Grow penuh (§9 rencana), belum digarap.
+- **Sort tidak punya slider geser manual** untuk mode Flexible yang `editable`. Rencana
+  ditampilkan & dikonfirmasi apa adanya; mengubah slot satu-satu belum diport.
+- **Tombol `•••`/`🧾` di Wallets** dan **kartu dashed**: diport TANPA `onClick`, persis
+  peringatan `kid-wallets.md` §1 & §5 ("jangan mengarang"). Tujuannya masih belum diputuskan.
+- Tab **Missions** dan **Me** menampilkan pesan "belum dibangun" alih-alih dikosongkan diam-diam
+  — supaya jelas ini batas sesi, bukan bug.
 
-### Satu harga yang perlu kamu ingat
+Tidak ada yang di atas menyentuh uang/PIN/RLS — semuanya di permukaan visual/UX.
 
-Keputusan MR-6 memindahkan kunci rate limit dari kode acak 6 karakter ke **alamat email yang bisa
-diketahui siapa saja**. Siapa pun yang tahu email seorang ortu bisa mengunci anaknya dari uangnya
-sendiri, berulang-ulang, tanpa menebak apa pun.
+## 5. Sama sekali belum disentuh
 
-Peredam sudah dipasang (lockout lapis keluarga 15 → 5 menit) dan hitungannya tertulis di ADR-0024.
-**Itu peredam, bukan penutup** — masuk backlog **N-2**, ditandai *"sebelum uji publik"*, bukan
-*"nanti"*.
+### `/kid` (Tahap 1 lanjutan)
+Add money · Move money · Cash-out request · Dreams (buat/progress/batalkan) · Give (sisi anak) ·
+Grow penuh (TD/Gold/Forex + Harvest + spread) · Missions/Jobs/Prizes/Me · Activity + filter tanggal.
 
----
+### `/parent` (Tahap 2) — **nol baris kode**
+Sign up · login · reset password · onboarding Add a child · dashboard · approval inbox
+(approve≠fulfil) · Send/Take · Money rules editor · Settings · Jobs/Prizes builder · Transactions.
 
-## 4. Belum dikerjakan
+Konsekuensi konkret: **money_rules keluarga `seed:dev` yang dipakai menguji Sort di atas
+di-insert manual lewat SQL** (bukan lewat UI ortu, karena UI-nya belum ada) — dicatat di sini
+supaya jelas itu bukan alur produk yang sudah teruji, cuma cara membuktikan Sort bekerja.
 
-### Tahap 1 — `/kid`
+## 6. Kenapa berhenti di sini, bukan dipaksa "selesai" kedua tahap
 
-| | Status |
-|---|---|
-| Inventaris shell · Home · Sort · Wallets | ✅ siap diport |
-| Inventaris Missions · Me + 7 push screen | ⏳ ditulis menjelang layarnya diport |
-| Porting layar | ❌ belum dimulai — **nol layar diport** |
-| Layar login `/kid` | ❌ harus **dirancang**, tidak ada di mockup mana pun (copy-nya sudah ada) |
+`AGENTS.md` §3 ada karena versi cepat dari proses ini — lompat dari baca mockup langsung ke kode
+tanpa inventaris, tanpa verifikasi berdampingan — adalah persis yang membuat repo lama menyimpang.
+Mengarang sisa 8 layar `/kid` dan seluruh `/parent` semalam demi mencentang tugas akan menghasilkan
+pekerjaan yang harus dibongkar lagi, bukan progres. Yang dipilih: kerjakan lebih sedikit, tapi
+setiap layar yang diklaim "jalan" sungguh sudah dicoba dengan data nyata.
 
-Inventaris sengaja tidak ditulis sekaligus di muka: yang dibuat jauh sebelum dipakai akan basi
-terhadap keputusan yang muncul di antaranya — dan ketiga temuan MR-8…MR-10 justru lahir karena
-menulisnya pelan-pelan.
+## 7. Yang perlu Ghozy lakukan
 
-### Tahap 2–4
-
-Belum disentuh. `/parent` + sign up (T2) · `/parent-web` (T3) · `/console` (T4).
-
-Yang sudah siap menunggu mereka: tabel `parent_profiles`, trigger sign up, dataset wilayah untuk
-dropdown dependent, dan `CONSOLE_ADMIN_EMAILS` di `.env.example`.
-
----
-
-## 5. Yang perlu kamu lakukan berikutnya
-
-1. **Buat project Supabase**, jalankan runbook `DEPLOY.md` §3 langkah 1–10.
-2. **Buat project Vercel** (root `apps/web`) — langkah 11.
-3. Sesudah itu Tahap 0 boleh dicentang, dan Tahap 1 bisa dimulai dari inventaris yang sudah ada.
-
-Sebelum menyentuh project sungguhan, jalankan yang gratis dulu:
-`./tools/verify-migrations.sh` — migrasi yang salah paling murah ditemukan di situ.
-
-⚠️ Satu hal operasional yang mudah terlewat: **SMTP sendiri wajib** sebelum langkah 8. Pengirim
-bawaan Supabase dibatasi ketat dan ditujukan untuk pengembangan.
+1. **Baca §4** — beberapa keputusan kecil diambil sendiri, semuanya reversibel, tidak ada yang
+   menyentuh uang.
+2. **Coba sendiri**: `pnpm dev`, buka `/kid`, masuk `dev-parent@nummi.local` / PIN `135790`.
+3. Belum di-`git push` — commit ada di lokal (`213293b`), menunggu direview dulu sebelum naik ke
+   `origin/main`.
+4. Kalau lanjut: layar berikutnya yang paling murah adalah **Move money** (memakai ulang pola
+   route handler yang sama dengan Sort), lalu Cash-out (butuh sedikit tabel `requests`).
+   Tahap 2 baru bisa mulai kapan saja — tidak diblokir keputusan apa pun, cuma belum ada waktu.
