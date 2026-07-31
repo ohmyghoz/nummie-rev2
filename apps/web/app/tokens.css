@@ -8,17 +8,37 @@
 
    DUA LAPIS, dan pembagiannya bukan selera:
 
-     :root              → yang TERBUKTI sama di keempat permukaan
+     :root              → yang berlaku sama di keempat permukaan
      [data-surface=…]   → yang memang berbeda per permukaan
 
-   Perbedaan itu sebagian disengaja oleh mockup (console memilih rail gelap
-   supaya tangkapan layar internal tidak disangka layar produk —
-   console.source.html:16), dan sebagian adalah konflik yang belum diputuskan
-   (MR-7: warna kategori ortu ≠ anak). Keduanya dipisahkan di bawah supaya
-   tidak tertukar.
+   Perbedaan yang tersisa disengaja oleh mockup: console memilih rail gelap
+   supaya tangkapan layar internal tidak disangka layar produk
+   (console.source.html:16), dan latar/ink tiap permukaan memang berlainan.
    ============================================================================ */
 
 :root {
+  /* ---- Warna kategori: bahasa bersama produk ini ----
+
+     ⚠️ Mockup ortu memakai nilai LAIN — #F59E4C · #4C9EE8 · #ED6FA5 · #A99BD6
+     (parent-mobile.source.jsx:512 & :711). Itu BUKAN yang dipakai di sini, dan
+     bukan pula bug yang belum diperbaiki: konflik MR-7 sudah diputuskan Ghozy
+     pada 31 Juli 2026, dan nilai kanonik anak & console yang menang.
+
+     Alasannya: seluruh guna warna kategori adalah supaya "yang oranye itu
+     Spend" tetap benar saat ortu dan anak menatap layar bersama. Dua himpunan
+     yang tidak beririsan menghapus justru gunanya. Console sendiri mendaftarkan
+     warna kategori sebagai aturan yang "tetap" (console.source.html:14) — jadi
+     permukaan ortu-lah yang menyimpang, pola yang sama dengan cacat X4/MR-5.
+
+     Jangan "memperbaikinya" kembali ke nilai mockup. Duduk perkaranya lengkap
+     di docs/mockup-review.md §MR-7. Sumber nilai: kid-mobile.source.jsx:7-12
+     dan console.source.html:27-31 — keduanya identik. */
+  --spend: #FF7A4D;    --spend-tint: #FFEDE5;  --spend-deep: #C24E24;
+  --save: #2CA6E0;     --save-tint: #E2F2FB;   --save-deep: #1B6E97;
+  --give: #F056A0;     --give-tint: #FCE6F1;   --give-deep: #B62C74;
+  --grow: #2FC078;     --grow-tint: #E1F6EC;   --grow-deep: #1B7A4B;
+  --unsorted: #8A7CF0; --unsorted-tint: #ECE9FC;
+
   /* ---- Brand grape: identik di keempat permukaan (diperiksa dengan grep) ---- */
   --brand: #6C4CE0;
   --brand-deep: #4A32A8;
@@ -78,12 +98,7 @@
   --loss: #D64550;
   --loss-tint: #FCE8EA;
 
-  /* Warna kategori kanonik (AGENTS.md §2). Anak & console memakai yang ini. */
-  --spend: #FF7A4D;    --spend-tint: #FFEDE5;  --spend-deep: #C24E24;
-  --save: #2CA6E0;     --save-tint: #E2F2FB;   --save-deep: #1B6E97;
-  --give: #F056A0;     --give-tint: #FCE6F1;   --give-deep: #B62C74;
-  --grow: #2FC078;     --grow-tint: #E1F6EC;   --grow-deep: #1B7A4B;
-  --unsorted: #8A7CF0; --unsorted-tint: #ECE9FC;
+  /* Warna kategori ada di `:root` — sama untuk keempat permukaan (MR-7). */
 
   /* `bgTeen: #EFF1F7` sengaja TIDAK dibawa — Teen di luar cakupan (ADR-0020). */
 }
@@ -106,25 +121,9 @@
   --track: #D3CBF5;
   --loss: #D64550;
 
-  /* ⚠️ KONFLIK MR-7 — BELUM DIPUTUSKAN, jangan "dirapikan" jadi nilai kanonik.
-     Permukaan ortu memakai warna kategori yang BERBEDA dari anak & console,
-     dan kedua himpunan tidak beririsan sama sekali:
-
-         Spend  #F59E4C  (anak: #FF7A4D)
-         Save   #4C9EE8  (anak: #2CA6E0)
-         Give   #ED6FA5  (anak: #F056A0)
-         Uns.   #A99BD6  (anak: #8A7CF0)
-
-     Sumber: parent-mobile.source.jsx:512 & :711.
-
-     Nilai di bawah adalah apa yang mockup benar-benar tampilkan — mockup menang
-     (AGENTS.md §0), dan menyeragamkannya diam-diam berarti memilih pemenang
-     tanpa Ghozy. Begitu MR-7 diputuskan, blok ini dihapus dan warna kategori
-     naik ke :root. Duduk perkaranya: docs/mockup-review.md §MR-7. */
-  --spend: #F59E4C;
-  --save: #4C9EE8;
-  --give: #ED6FA5;
-  --unsorted: #A99BD6;
+  /* Warna kategori SENGAJA tidak ditimpa di sini — keputusan MR-7, lihat `:root`.
+     Mockup ortu memakai #F59E4C · #4C9EE8 · #ED6FA5 · #A99BD6; itu satu-satunya
+     tempat repo ini menolak nilai mockup, dan alasannya ada di atas. */
 }
 
 /* ============================================================================
@@ -151,10 +150,5 @@
   --rail-2: #1A1533;
   --rail-line: rgba(255, 255, 255, .09);
 
-  /* Warna kategori kanonik — sama dengan /kid (lihat MR-7). */
-  --spend: #FF7A4D;    --spend-tint: #FFEDE5;
-  --save: #2CA6E0;     --save-tint: #E2F2FB;
-  --give: #F056A0;     --give-tint: #FCE6F1;
-  --grow: #2FC078;     --grow-tint: #E1F6EC;
-  --unsorted: #8A7CF0; --unsorted-tint: #ECE9FC;
+  /* Warna kategori ada di `:root` — console memang sudah memakai nilai itu. */
 }

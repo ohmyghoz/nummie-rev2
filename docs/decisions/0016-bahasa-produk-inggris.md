@@ -51,6 +51,36 @@ Yang tersisa kemudian adalah pertimbangan biaya, dan arahnya jelas:
   (SPEND · SAVE · GIVE · GROW) sudah cocok dengan mockup dan brand system §5.2. Yang masih perlu
   diputuskan tinggal: **apakah istilah berubah menurut tier.** Lookup `[tier][kategori]` tetap wajib.
 
+---
+
+## Amandemen — ragam Inggris: **Amerika** (31 Juli 2026)
+
+Konsekuensi di atas menyisakan satu tugas terbuka: *"pilih satu varian dan tegakkan di kamus."*
+ADR ini tidak pernah memilihnya. Konflik yang memaksanya tercatat sebagai **MR-3** di
+[`../mockup-review.md`](../mockup-review.md) — mockup memakai `Practice`, dan tidak ada dokumen
+yang menyatakan itu benar atau salah.
+
+**Keputusan: ejaan Amerika.** `Practice` · `color` · `favorite` · `-ize`.
+
+**Kenapa.** Mockup sudah memakainya dan konsisten di dalam dirinya sendiri, jadi porting tidak
+perlu menyisir apa pun — dan setiap aturan yang menuntut penyisiran saat porting adalah aturan
+yang akan bocor pada sesi yang lupa. Ejaan Amerika juga yang paling banyak ditemui anak Indonesia
+lewat internet, game, dan YouTube.
+
+**Cakupannya seluruh `copy/en.ts`, bukan dua string yang memicunya.** K12 lahir dari
+"Practice di HP vs Practise di iPad"; menutupnya hanya untuk kata itu akan meninggalkan pertanyaan
+yang sama untuk `color`, `favorite`, dan seterusnya. Aturannya sekarang ada di `copy/README.md`,
+tempat orang benar-benar menulis string.
+
+**Ini penambahan, bukan pembalikan.** Keputusan inti — bahasa produk = Inggris — tidak berubah,
+dan status 🔒 ADR ini tetap. Yang ditambahkan adalah jawaban atas pertanyaan yang memang
+digantungnya.
+
+Ditinjau ulang bersama ADR ini kalau D5 memasukkan Little: pertanyaan ragam ikut gugur kalau
+bahasanya berpindah.
+
+---
+
 ## Kapan ini harus ditinjau ulang
 
 **Kalau D5 memasukkan Little (KG B–Grade 2) ke dalam cakupan.** Saat itu argumen "anak belum bisa

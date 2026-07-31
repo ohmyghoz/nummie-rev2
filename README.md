@@ -154,15 +154,23 @@ Tahap 0 **belum boleh dicentang selesai**: enam pemeriksaan sudah hijau di repo 
 build, unpack, regions, migrasi di Postgres lokal), tapi sebelas langkah yang butuh Supabase &
 Vercel sungguhan masih menunggu — runbooknya di [`docs/DEPLOY.md`](docs/DEPLOY.md) §3.
 
-### Menunggu keputusan sebelum Tahap 1 mulai
+### Keputusan yang sudah diambil (31 Juli 2026)
 
-- **MR-6** — anak masuk pakai **email ortu** (mockup) atau **kode keluarga** (ADR-0012)? Ini
-  menentukan bentuk Edge Function `child-login`. Sekaligus: `/kid` tidak punya layar login sama
-  sekali di mockup, jadi layar itu harus **dirancang**, bukan diport.
-- **MR-2** — format rupiah `Rp 10,000` (mockup) atau `Rp50.000` (brand system)? Menentukan
-  pemisah ribuan live di setiap kolom input Tahap 1.
+Ketujuh konflik mockup **sudah terjawab** — Tahap 1 tidak diblokir pertanyaan apa pun.
 
-Keduanya di [`docs/mockup-review.md`](docs/mockup-review.md), lengkap dengan buktinya.
+| | Hasil |
+|---|---|
+| Login anak | **email ortu + PIN** (ADR-0024, mengamandemen ADR-0012) |
+| Format rupiah | **`Rp50.000`** — `formatRp()` dari `packages/core` |
+| Warna kategori | **seragam** di keempat permukaan (nilai kanonik anak & console) |
+| Ragam Inggris | **Amerika** — `Practice`, `color`, `favorite` |
+
+Rinciannya, lengkap dengan bukti `berkas:baris`, di
+[`docs/mockup-review.md`](docs/mockup-review.md).
+
+Dua hal yang tetap jadi **pekerjaan** Tahap 1, bukan pertanyaan: layar login `/kid` harus
+**dirancang** (tidak pernah ada di mockup — copy-nya sudah tersedia di `copy/en.ts`), dan angka
+yang ditulis tangan di dalam copy kurikulum harus disisir manual ke format baru.
 
 ---
 

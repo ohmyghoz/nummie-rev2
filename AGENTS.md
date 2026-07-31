@@ -103,7 +103,12 @@ nummi/
 - **Produksi mulai kosong** — tidak ada seed demo. Seed kanonik `packages/core/src/seed.ts`
   tetap ada **untuk test & `pnpm seed:dev` saja** (1 keluarga uji + 1 anak Middle).
 - Default sistem (bukan data): auto-split 40/40/20, mode Flexible, wallet Save bawaan "Free savings".
-- Format angka tampilan: ikuti mockup (lihat §0 — konflik format dicatat, keputusan final milik Ghozy).
+- **Format rupiah: `formatRp()` dari `packages/core`** — `Rp50.000`, tanpa spasi, titik ribuan.
+  Untuk input, `formatRpInput()` (pemisah ribuan live). **Jangan pernah menulis pemformat kedua.**
+  Ini **pengecualian tertulis** dari "mockup menang" (§0): mockup memakai `Rp 10,000`, yaitu bentuk
+  yang brand system daftarkan di bawah *"Do not mix"*. Diputuskan Ghozy 31 Juli 2026 —
+  `docs/mockup-review.md` §MR-2. Angka yang ditulis tangan di dalam copy kurikulum ikut disisir
+  saat porting (§MR-4), kalau tidak satu layar menampilkan dua format sekaligus.
 
 ## 7. Cara kerja
 

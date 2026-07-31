@@ -1,6 +1,9 @@
-# Tinjauan mockup — konflik yang menunggu keputusan Ghozy
+# Tinjauan mockup — konflik mockup vs dokumen
 
 > Daftar tempat **mockup bertentangan dengan dokumen, ADR, atau dirinya sendiri**.
+>
+> **Per 31 Juli 2026 seluruhnya sudah terjawab** — daftar ini kini jadi catatan *kenapa* tiap
+> layar diport seperti yang diport. Tambahkan baris baru begitu konflik berikutnya ditemukan.
 >
 > Aturannya (AGENTS.md §0): **mockup menang** sampai Ghozy bilang lain. Berkas di
 > `reference/mockups/` tidak pernah diperbaiki diam-diam — memperbaikinya menghapus bukti
@@ -17,14 +20,46 @@
 | | |
 |---|---|
 | Dibuka | 31 Juli 2026 (Tahap 0) |
-| Terbuka | 7 (MR-1 … MR-7) |
-| Diputuskan | 0 |
-| **Perlu diputuskan sebelum Tahap 1 mulai** | **MR-6** (layar login anak) · **MR-2** (format rupiah) |
-| Sudah memaksa keputusan teknis sementara | MR-7 (token warna dipasang per permukaan) |
+| **Terbuka** | **0** |
+| Diputuskan Ghozy | 4 — MR-2 · MR-3 · MR-6 · MR-7 (31 Juli 2026) |
+| Tidak pernah butuh keputusan | 3 — MR-1 · MR-4 · MR-5 (sudah dijawab aturan yang ada) |
+
+**Tahap 1 tidak lagi diblokir keputusan apa pun.** Yang tersisa dari daftar ini adalah pekerjaan
+porting, bukan pertanyaan.
+
+| # | Hasil | Ditegakkan di |
+|---|---|---|
+| MR-1 | badge streak **diport apa adanya**, tidak akan pernah menyala | AGENTS.md §5 — sudah memutuskannya sejak awal |
+| MR-2 | format brand `Rp50.000` menang | AGENTS.md §6 · `packages/core/src/money.ts` |
+| MR-3 | ejaan Amerika | ADR-0016 §Amandemen · `copy/README.md` aturan 5 |
+| MR-4 | ikut MR-2 — **tapi butuh sisir manual** saat porting kurikulum | `copy/README.md` aturan 6 |
+| MR-5 | rasio kanonik 40/40/20, mockup diabaikan | AGENTS.md §0 — angka milik `packages/core` |
+| MR-6 | **email ortu + PIN** | ADR-0024 · migrasi 0022 · `child-login` |
+| MR-7 | warna kategori kanonik, seragam | `apps/web/app/tokens.css` |
+
+Dua di antaranya tidak pernah benar-benar terbuka, dan itu layak dicatat supaya daftar berikutnya
+tidak ikut menggelembung: **MR-1 dan MR-5 sudah dijawab AGENTS.md sebelum ditulis di sini.** §5
+menetapkan streak hilang dari engine sementara UI tetap ikut mockup; §0 menaruh angka di wilayah
+`packages/core`, tempat mockup tidak pernah menang. Mencatatnya tetap berguna — yang keliru adalah
+menyodorkannya sebagai pertanyaan.
 
 ---
 
-## MR-6 · Login anak: email ortu, bukan kode keluarga — **memblokir Tahap 1**
+## MR-6 · Login anak: email ortu, bukan kode keluarga
+
+> ### ✅ DIPUTUSKAN 31 Juli 2026 — **email ortu + PIN**, mockup menang
+>
+> Ditetapkan [ADR-0024](decisions/0024-login-anak-email-ortu.md), yang **mengamandemen** ADR-0012
+> (mekanismenya utuh; hanya pengenalnya berganti). Terpasang di migrasi 0022 dan Edge Function
+> `child-login` (`{ parentEmail, pin }`). **Ortu mana pun** di keluarga itu berlaku.
+>
+> ⚠️ **Harganya nyata dan tercatat**: rate limit lapis keluarga dulu berkunci kode acak, kini
+> berkunci alamat email yang bisa diketahui siapa saja — jadi siapa pun yang tahu email seorang
+> ortu bisa mengunci anaknya berulang-ulang. Lockout-nya dipendekkan 15 → 5 menit sebagai peredam;
+> hitungan lengkapnya di ADR-0024 §Konsekuensi 1.
+>
+> **Yang masih jadi pekerjaan Tahap 1:** layar login `/kid` tetap harus **dirancang**, bukan
+> diport — lihat catatan di bawah.
 
 **Bukti:** `parent-mobile.markup.html:8` (layar `Login`), copy-nya:
 
@@ -57,13 +92,23 @@ memanggil `setState({authed:true})` lalu mendarat di dashboard ortu
 (`parent-mobile.source.jsx:266`) — tidak pernah merender app anak.
 
 Artinya layar login `/kid` harus **dirancang**, bukan diport. Rencana Tahap 1 no.1 memintanya
-seolah tinggal menyalin.
+seolah tinggal menyalin, dan `nummi-web-plan.md` sudah dikoreksi untuk mengatakannya.
 
-**Pertanyaan untuk Ghozy:** anak masuk pakai email ortu (mockup) atau kode keluarga (ADR-0012)?
+Copy-nya sudah tersedia — diambil persis dari mockup ke `copy/en.ts` §login — jadi yang perlu
+dirancang tinggal susunan layarnya, memakai gaya mockup.
 
 ---
 
 ## MR-7 · Warna kategori permukaan ortu berbeda dari anak & console
+
+> ### ✅ DIPUTUSKAN 31 Juli 2026 — **himpunan kanonik anak & console menang**
+>
+> Warna kategori naik ke `:root` di `apps/web/app/tokens.css` dan berlaku sama di keempat
+> permukaan. Nilai mockup ortu (`#F59E4C` dst.) **sengaja tidak dipakai**.
+>
+> **Ini satu-satunya tempat repo ini menolak nilai mockup**, jadi alasannya ditulis di berkas CSS-nya
+> sendiri — supaya sesi berikutnya yang membuka mockup ortu tidak mengira ia menemukan bug lalu
+> "memperbaikinya" kembali.
 
 **Bukti:** `parent-mobile.source.jsx:512` dan `:711` (sama persis di `parent-web.source.jsx`):
 
@@ -96,14 +141,19 @@ Jadi console menyatakan sedang mematuhi aturan bersama — dan permukaan ortu di
 warna kategori adalah bahasa bersama produk ini: seluruh gunanya justru supaya "yang oranye itu
 Spend" berlaku saat ortu dan anak menatap layar bersama.
 
-**Sudah memaksa keputusan teknis di Tahap 0.** `apps/web/app/tokens.css` tidak bisa menaruh satu
-`--spend` di `:root` lalu menyebutnya bersama — itu berarti diam-diam memilih satu pemenang.
-Token warna kategori karena itu dipasang **per permukaan**, dan konflik ini ditulis apa adanya di
-dalam berkas CSS-nya. Begitu MR-7 diputuskan, satu lapis dihapus dan nilainya naik ke `:root`.
+**Kenapa keputusannya jatuh ke nilai kanonik.** Console mendaftarkan warna kategori sebagai aturan
+yang "tetap" — jadi ia mengaku mematuhi aturan bersama, dan permukaan ortu-lah yang menyimpang.
+Polanya sama dengan X4/MR-5: drift antar-berkas yang tidak disadari, bukan pilihan desain.
+Warna kategori kini duduk di `:root` dan berlaku di keempat permukaan.
 
 ---
 
 ## MR-5 · Auto-split ortu 40/40/10 = 90% — X4 masih hidup
+
+> ### ✅ Tidak pernah butuh keputusan — AGENTS.md §0 sudah menjawabnya
+>
+> Angka adalah wilayah `packages/core`, bukan mockup: *"mockup tidak pernah bertentangan dengan
+> ini"*. Yang benar tetap **40/40/20** (`seed.ts:113`). Jangan menyalin 40/40/10 ke kode.
 
 **Bukti:** `parent-mobile.source.jsx:25` — `split:{ on:true, spend:40, save:40, give:10 }`
 
@@ -127,6 +177,11 @@ selamanya. Di mode Strict, angka yang sama akan ditolak.
 
 ## MR-1 · Badge "🔥 7-day streak" vs ADR-0011
 
+> ### ✅ Tidak pernah butuh keputusan — AGENTS.md §5 sudah menjawabnya
+>
+> *"0011 streak dihapus (engine — UI tetap ikut mockup, konflik badge dicatat di mockup-review)"*.
+> Badge diport apa adanya dan tidak akan pernah menyala.
+
 **Bukti:** `kid-mobile.source.jsx:731` — rak badge layar Me, dalam keadaan belum diraih (`0`).
 
 ADR-0011 membuang streak, bukan memperbaikinya. AGENTS.md §5 sudah memutuskan pembagiannya:
@@ -138,6 +193,15 @@ Konsekuensi yang perlu disadari: badge mati permanen di rak yang badge lainnya b
 ---
 
 ## MR-2 · Format rupiah `Rp 10,000` — persis yang dilarang brand system
+
+> ### ✅ DIPUTUSKAN 31 Juli 2026 — **format brand `Rp50.000` menang**
+>
+> Pakai `formatRp()` / `formatRpInput()` dari `packages/core`. `rp()` milik mockup **tidak
+> diport**. Ini pengecualian tertulis dari "mockup menang", dicatat di AGENTS.md §6.
+>
+> **MR-4 ikut tertutup keputusan ini** — tapi bukan berarti selesai sendiri: angka yang ditulis
+> tangan di dalam copy kurikulum tidak melewati pemformat, jadi ia **wajib disisir manual** saat
+> porting Tahap 1. Kalau terlewat, satu layar menampilkan `Rp 100.000` dan `Rp50.000` bersamaan.
 
 **Bukti:** `kid-mobile.source.jsx:44` — `rp(n){ return 'Rp ' + Math.round(n).toLocaleString('en-US'); }`
 (juga baris 52). Hasilnya: spasi setelah `Rp`, dan **koma** sebagai pemisah ribuan.
@@ -182,6 +246,11 @@ mengetik**) — pemformat yang salah pilih akan disalin ke setiap kolom input.
 
 ## MR-4 · Mockup anak memakai dua format rupiah sekaligus
 
+> ### ✅ DIPUTUSKAN 31 Juli 2026 bersama MR-2 — semuanya jadi `Rp50.000`
+>
+> ⚠️ **Tapi ini yang tidak selesai sendiri.** `formatRp()` hanya menyentuh angka yang melewatinya;
+> angka di baris 647 ditulis tangan **di dalam kalimat**. Sisir manual saat porting kurikulum.
+
 **Bukti:** `kid-mobile.source.jsx:647`, badan sebuah misi:
 
 > *"Grandma gives you Rp 100.000. You are saving for a BMX bike that costs Rp 900.000."*
@@ -195,6 +264,12 @@ tidak, satu layar menampilkan `Rp 100.000` dan `Rp 10,000` bersamaan.
 ---
 
 ## MR-3 · Ejaan "Practice" (Amerika) vs "Practise"
+
+> ### ✅ DIPUTUSKAN 31 Juli 2026 — **ejaan Amerika**, mockup diport apa adanya
+>
+> Berlaku untuk seluruh `copy/en.ts`, bukan dua string yang memicunya. Dicatat sebagai amandemen
+> ADR-0016 (yang memang menggantung pertanyaan ini) dan sebagai aturan 5 di `copy/README.md`.
+> Sekaligus menutup **K12**.
 
 **Bukti:** `kid-mobile.source.jsx:501` (`"Daily mission · Practice"`) dan `:685`
 (`"Practice with my real money"`).
