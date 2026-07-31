@@ -1,13 +1,9 @@
-import { Placeholder } from '../_placeholder';
+import { ParentApp } from './_components/ParentApp';
 
 export default function ParentPage() {
   return (
-    <Placeholder
-      surface="parent"
-      route="/parent"
-      title="Nummi Parent"
-      mockup="parent-mobile.html"
-      stage="Tahap 2"
-    />
+    <main data-surface="parent" data-theme="grape" style={{ background: 'var(--canvas)' }}>
+      <ParentApp />
+    </main>
   );
 }

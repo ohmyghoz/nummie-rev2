@@ -146,6 +146,27 @@ export interface Dictionary {
    * walau layarnya tidak memakainya lagi — membuangnya cuma menghemat satu baris sambil membuat
    * jalan kembali lebih mahal.
    */
+  /** Auth ortu SUNGGUHAN (ADR-0023) — dipakai layar. `parentAuth` di bawah tidak lagi dipakai. */
+  parentSignIn: Record<
+    'title' | 'subtitle' | 'email' | 'password' | 'submit' | 'forgotPassword' | 'failed'
+    | 'noAccount' | 'signUpLink' | 'signOut',
+    string
+  >;
+
+  parentSignUp: Record<
+    'title' | 'subtitle' | 'fullName' | 'email' | 'password' | 'phone' | 'country' | 'province'
+    | 'city' | 'freeTextHint' | 'submit' | 'haveAccount' | 'signInLink' | 'nameRequired'
+    | 'emailInvalid' | 'passwordTooShort' | 'failed' | 'emailTaken',
+    string
+  >;
+
+  parentResetPassword: Record<
+    'title' | 'subtitle' | 'email' | 'submit' | 'sent' | 'failed' | 'backToSignIn'
+    | 'newPasswordTitle' | 'newPassword' | 'newPasswordSubmit' | 'newPasswordTooShort'
+    | 'newPasswordSaved',
+    string
+  >;
+
   parentAuth: Record<
     'title' | 'subtitle' | 'email' | 'password' | 'submit' | 'failed' | 'signOut'
     | 'noPassword' | 'codeSent' | 'code' | 'codeHint' | 'submitCode' | 'resend'

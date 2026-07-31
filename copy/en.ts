@@ -265,6 +265,61 @@ export const en: Dictionary = {
     decisionFailed: 'That did not go through. Nothing changed — check the balance and try again.',
   },
 
+  /**
+   * Auth ortu SUNGGUHAN dipakai layar (ADR-0023: email + password + reset, sign up publik).
+   * `parentAuth` di bawah ini SENGAJA tidak disentuh (lihat komentarnya) — itu peninggalan OTP.
+   * "Welcome back" / "Sign in to be the bank." diambil dari mockup (parent-mobile.markup.html:26);
+   * sisanya (sign up, reset) tidak ada di mockup — DEVIASI D-D, ditulis di sini seperti login `/kid`.
+   */
+  parentSignIn: {
+    title: 'Welcome back',
+    subtitle: 'Sign in to be the bank.',
+    email: 'Email',
+    password: 'Password',
+    submit: 'Sign in',
+    forgotPassword: 'Forgot password?',
+    failed: "That didn't work. Check the email and password, then try again.",
+    noAccount: "Don't have an account?",
+    signUpLink: 'Sign up',
+    signOut: 'Sign out',
+  },
+
+  parentSignUp: {
+    title: "Let's set up your family",
+    subtitle: 'A few details, then you can add your child.',
+    fullName: 'Your name',
+    email: 'Email',
+    password: 'Password',
+    phone: 'Phone number',
+    country: 'Country',
+    province: 'Province',
+    city: 'City / regency',
+    freeTextHint: 'Type it in — we only have a dropdown for Indonesia.',
+    submit: 'Create my account',
+    haveAccount: 'Already have an account?',
+    signInLink: 'Sign in',
+    nameRequired: 'A name is needed',
+    emailInvalid: 'That email doesn’t look right',
+    passwordTooShort: 'Needs at least 8 characters',
+    failed: "That didn't work. Check your details and try again.",
+    emailTaken: 'An account already exists for that email — sign in instead.',
+  },
+
+  parentResetPassword: {
+    title: 'Reset your password',
+    subtitle: "We'll email you a link to set a new one.",
+    email: 'Email',
+    submit: 'Send reset link',
+    sent: 'Check {email} for a link to set a new password.',
+    failed: "That didn't work. Check the email, then try again.",
+    backToSignIn: 'Back to sign in',
+    newPasswordTitle: 'Set a new password',
+    newPassword: 'New password',
+    newPasswordSubmit: 'Save new password',
+    newPasswordTooShort: 'Needs at least 8 characters',
+    newPasswordSaved: 'Saved. Sign in with your new password.',
+  },
+
   parentAuth: {
     title: 'Nummi for grown-ups',
     subtitle: 'Sign in to see what your child is deciding.',
