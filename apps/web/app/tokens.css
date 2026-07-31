@@ -97,6 +97,11 @@
   --track: #ECE7F7;
   --loss: #D64550;
   --loss-tint: #FCE8EA;
+  /* CTA nonaktif (kid-mobile.source.jsx pushCta() :839) — warna mati di mockup, jadi
+     token di sini, bukan literal di komponen (docs/inventory/kid-shell.md §5). */
+  --disabled: #CFC7EA;
+  /* `cardShadow` kid-mobile.source.jsx:23 — beda dari --sh-1/2/3 (nilai console). */
+  --sh-card: 0 2px 4px rgba(42, 35, 66, .04), 0 8px 24px rgba(42, 35, 66, .06);
 
   /* Warna kategori ada di `:root` — sama untuk keempat permukaan (MR-7). */
 

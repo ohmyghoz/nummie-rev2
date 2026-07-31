@@ -46,6 +46,19 @@ const nextConfig = {
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
+  /**
+   * `@core` & `copy/` importan gaya NodeNext — `import './foo.js'` menunjuk berkas
+   * `.ts` sungguhan (TS mewajibkan ekstensi `.js` pada import relatif meski sumbernya
+   * `.ts`). `tsc` (moduleResolution: bundler) sudah tahu ini; webpack Next TIDAK,
+   * kecuali diberi tahu lewat `extensionAlias`. Tanpa ini, build lolos typecheck
+   * tapi mati saat runtime dengan "Module not found: Can't resolve './x.js'".
+   */
+  webpack(config) {
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js'],
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

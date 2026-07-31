@@ -1,13 +1,9 @@
-import { Placeholder } from '../_placeholder';
+import { KidApp } from './_components/KidApp';
 
 export default function KidPage() {
   return (
-    <Placeholder
-      surface="kid"
-      route="/kid"
-      title="Nummi"
-      mockup="kid-mobile.html"
-      stage="Tahap 1"
-    />
+    <main data-surface="kid" data-theme="grape" style={{ background: 'var(--canvas)' }}>
+      <KidApp />
+    </main>
   );
 }

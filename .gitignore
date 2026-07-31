@@ -29,3 +29,4 @@ out/
 
 # Hasil test
 coverage/
+.vercel

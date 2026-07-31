@@ -55,6 +55,11 @@ const admin = createClient(
 );
 
 Deno.serve(async (req: Request) => {
+  // CORS: dipanggil dari browser (`/kid`), origin beda dengan project Supabase —
+  // baik di dev (localhost) maupun produksi (Vercel). Tanpa ini preflight `OPTIONS`
+  // gagal dan fetch() gugur diam-diam sebagai "Failed to fetch", sebelum sempat
+  // menyentuh body POST sama sekali.
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   const { parentEmail, pin } = await req.json().catch(() => ({}));
@@ -203,9 +208,20 @@ async function clearFailures(familyId: string | null, ip: string) {
   await q;
 }
 
+/**
+ * `*` sengaja, bukan allowlist domain: token yang diterbitkan di sini hanya berlaku untuk
+ * membaca/menulis milik anak itu sendiri (RLS via klaim JWT) — kerahasiaan asal permintaan
+ * tidak menjaga apa pun di jalur ini yang belum dijaga rate limit + verifikasi PIN di atas.
+ */
+const CORS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+};
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...CORS },
   });
 }
