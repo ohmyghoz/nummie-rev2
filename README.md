@@ -116,7 +116,9 @@ nummi/
 
 | Kalau kamu ingin… | Baca |
 |---|---|
+| **tahu sudah sampai mana** | [`docs/PROGRESS.md`](docs/PROGRESS.md) |
 | aturan kerja & protokol anti-divergensi | [`AGENTS.md`](AGENTS.md) |
+| memport layar `/kid` | [`docs/inventory/`](docs/inventory/) |
 | apa yang dikerjakan di tahap berapa | [`nummi-web-plan.md`](nummi-web-plan.md) |
 | **konflik mockup yang menunggu keputusan** | [`docs/mockup-review.md`](docs/mockup-review.md) |
 | kenapa sebuah keputusan diambil | [`docs/decisions/`](docs/decisions/) |
