@@ -85,6 +85,30 @@ function extractFonts(templateHtml) {
   return m ? m[1] : null;
 }
 
+/**
+ * Markup layar tinggal di `<x-dc>`, TERPISAH dari kelas logika di `text/x-dc`.
+ *
+ * Kedua permukaan ortu memakai pembagian itu: logikanya menyiapkan binding (`V.lgIsKid = …`),
+ * markup-nya memakainya (`<sc-if value="{{ loginShow }}">`). Membaca `.source.jsx` saja
+ * memperlihatkan setengah layar — state dan handler tanpa satu pun elemen, copy, atau warna.
+ * `parent-mobile` menyimpan 130 KB markup di sini, termasuk `data-screen-label` per layar yang
+ * langsung menjadi kerangka "inventaris layar" wajib AGENTS.md §3b.
+ *
+ * `kid-mobile` justru sebaliknya — markup-nya kosong karena seluruh UI dibangun lewat
+ * `this.h(...)` di dalam kelas. Karena itu berkas ini hanya ditulis kalau memang ada isinya.
+ */
+function extractMarkup(templateHtml) {
+  const m = templateHtml.match(/<x-dc>([\s\S]*?)<\/x-dc>/);
+  if (!m) return null;
+  const markup = m[1]
+    .replace(/<script[\s\S]*?<\/script>/g, '')
+    .replace(/<helmet[\s\S]*?<\/helmet>/g, '')
+    .trim();
+  // Ambang 1 KB: memisahkan "markup sungguhan" dari cangkang kosong milik permukaan yang
+  // membangun UI-nya lewat kode.
+  return markup.length > 1024 ? markup : null;
+}
+
 const BANNER = (name) =>
   `/* GENERATED oleh tools/unpack-mockups.mjs dari reference/mockups/${name} — JANGAN DIEDIT.\n` +
   `   Sumber kebenaran tetap berkas HTML-nya; berkas ini hanya supaya bisa di-grep. */\n\n`;
@@ -123,15 +147,33 @@ function main() {
 
     fs.writeFileSync(path.join(OUT_DIR, `${name}.source.jsx`), BANNER(file) + source);
 
+    const extras = [];
+
+    const markup = extractMarkup(template);
+    if (markup) {
+      const labels = [...markup.matchAll(/data-screen-label="([^"]*)"/g)].map((m2) => m2[1]);
+      fs.writeFileSync(
+        path.join(OUT_DIR, `${name}.markup.html`),
+        `<!-- GENERATED oleh tools/unpack-mockups.mjs dari reference/mockups/${file} — JANGAN DIEDIT.\n` +
+          (labels.length ? `     Layar berlabel: ${labels.join(' · ')} -->\n` : `     Tanpa data-screen-label. -->\n`) +
+          markup,
+      );
+      extras.push(`${name}.markup.html (${markup.length.toLocaleString('id-ID')} char, ${labels.length} layar berlabel)`);
+    }
+
     const fonts = extractFonts(template);
     if (fonts) {
       fs.writeFileSync(
         path.join(OUT_DIR, `${name}.fonts.html`),
         `<!-- GENERATED oleh tools/unpack-mockups.mjs dari reference/mockups/${file} — JANGAN DIEDIT. -->\n${fonts}`,
       );
+      extras.push(`${name}.fonts.html`);
     }
 
-    console.log(`  ${name}: bundle → ${name}.source.jsx (${source.length.toLocaleString('id-ID')} char)${fonts ? ` + ${name}.fonts.html` : ''}`);
+    console.log(
+      `  ${name}: bundle → ${name}.source.jsx (${source.length.toLocaleString('id-ID')} char)` +
+        (extras.length ? `\n      + ${extras.join('\n      + ')}` : ''),
+    );
     bundled++;
   }
 
