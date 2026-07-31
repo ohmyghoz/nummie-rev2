@@ -220,8 +220,10 @@ async function main() {
       password  ${PASSWORD}
 
   Masuk sebagai ANAK  →  /kid   (Edge Function child-login)
-      kode keluarga  ${family.family_code}
-      PIN            ${CHILD_PIN}
+      email ortu  ${EMAIL}      ← ADR-0024: anak memakai email ortunya
+      PIN         ${CHILD_PIN}
+
+  (kode keluarga ${family.family_code} kini pengenal internal, bukan kredensial login)
 
   Saldo nol, ledger kosong — sengaja. Untuk angka kanonik (Rp484.711),
   jalankan supabase/seed.sql; keduanya tidak saling menimpa.

@@ -14,6 +14,7 @@
 | Project Vercel | 3 (`kid`, `parent`, `console`) | **1**, root `apps/web` |
 | Route | 3 origin terpisah | `/kid` `/parent` `/parent-web` `/console` |
 | Auth ortu | OTP tanpa password (ADR-0022) | **email + password + reset** (ADR-0023) |
+| Auth anak | kode keluarga + PIN (ADR-0012) | **email ortu + PIN** (ADR-0024) |
 
 Satu project dipilih di AGENTS.md §5. Konsekuensi yang perlu diketahui sejak awal: **`/console`
 kini satu origin dengan app keluarga.** Ia tidak lagi dilindungi oleh "beda project, beda
@@ -28,7 +29,7 @@ Region **Singapore** (latensi Indonesia). Detail project & MCP: [`../supabase/RE
 
 ```bash
 supabase link --project-ref <ref>
-supabase db push          # menjalankan 0001–0021 berurutan
+supabase db push          # menjalankan 0001–0022 berurutan
 supabase functions deploy child-login
 ```
 
@@ -38,7 +39,7 @@ Sebelum menyentuh project sungguhan, jalankan dulu yang gratis:
 ./tools/verify-migrations.sh
 ```
 
-Ia membangun Postgres lokal bersih + stub skema `auth`, menjalankan 0001–0021, lalu **menguji
+Ia membangun Postgres lokal bersih + stub skema `auth`, menjalankan 0001–0022, lalu **menguji
 perilakunya** (sign up melahirkan 3 baris · `family_code` sesuai alfabet · aturan PIN menolak ·
 RLS `parent_profiles` memisahkan dua ortu). Migrasi yang salah paling murah ditemukan di sini.
 
@@ -122,8 +123,8 @@ tidak ikut dalam git, tidak ikut saat project dibuat ulang, dan tidak berlaku di
 
 ## 3. Runbook verifikasi Tahap 0
 
-Definisi Selesai T0 punya sebelas butir. **Enam sudah terbukti di repo** dan bisa kamu ulang
-sendiri; lima sisanya butuh kredensial dan menunggu kamu.
+Definisi Selesai T0 punya dua belas butir. **Enam sudah terbukti di repo** dan bisa kamu ulang
+sendiri; sisanya butuh kredensial dan menunggu kamu.
 
 ### Sudah terbukti (jalankan ulang kapan saja)
 
@@ -134,7 +135,7 @@ pnpm typecheck                # packages/core + apps/web + data/regions
 pnpm mockups:unpack           # 3 bundle dibuka, 1 HTML biasa disalin
 pnpm regions:build            # 38 provinsi, 514 kab/kota — gagal keras kalau meleset
 pnpm build                    # Next build hijau
-./tools/verify-migrations.sh  # 0001–0021 di Postgres lokal + uji perilaku
+./tools/verify-migrations.sh  # 0001–0022 di Postgres lokal + uji perilaku
 ```
 
 ### Butuh kamu — belum terverifikasi
@@ -144,23 +145,27 @@ menyala (RLS rekursif, view yang melewati RLS, rate limit yang tak pernah menghi
 
 | # | Langkah | Bukti yang dicari |
 |---|---|---|
-| 1 | `supabase db push` ke project baru | 0001–0021 jalan bersih, nol galat |
+| 1 | `supabase db push` ke project baru | 0001–0022 jalan bersih, nol galat |
 | 2 | `supabase functions deploy child-login` | fungsi ACTIVE |
-| 3 | `NUMMI_SEED_PROJECT_REF=<ref> pnpm seed:dev` | mencetak kode keluarga + PIN; `families`/`parents`/`parent_profiles` masing-masing dapat **satu** baris |
-| 4 | Periksa `family_code` hasil langkah 3 | 6 karakter, **tanpa** `0 O 1 I L 5 S` (ADR-0023) |
+| 3 | `NUMMI_SEED_PROJECT_REF=<ref> pnpm seed:dev` | mencetak email ortu + PIN; `families`/`parents`/`parent_profiles` masing-masing dapat **satu** baris |
+| 4 | Periksa `family_code` di database | 6 karakter, **tanpa** `0 O 1 I L 5 S` (ADR-0023). Kini pengenal internal — bukan lagi kredensial login (ADR-0024) |
 | 5 | Sign up ortu lewat app | tiga baris lahir otomatis — trigger 0020 yang membuatnya, bukan kode app |
-| 6 | Login anak: kode keluarga + PIN | Edge Function menjawab JWT ber-claim; layar `/kid` terbuka |
+| 6 | Login anak: **email ortu + PIN** (ADR-0024) | Edge Function menjawab JWT ber-claim. Payload `{ parentEmail, pin }` — bentuk ini **belum pernah** jalan di Supabase mana pun |
+| 6b | Login anak dengan email **ortu kedua** di keluarga yang sama | juga berhasil — ADR-0024 menetapkan ortu mana pun berlaku |
 | 7 | Login ortu: email + password | masuk tanpa verifikasi email lebih dulu (ADR-0023) |
 | 8 | Lupa password → email sampai → set password baru → masuk | **ini yang membuktikan SMTP hidup** |
 | 9 | Coba buat anak dengan PIN 4 digit | **ditolak** (0021). Kalau lolos, migrasi 0021 belum jalan |
 | 10 | Coba buat anak kedua dengan PIN sama | **ditolak**. Kalau lolos, kedua anak akan terkunci permanen dari uangnya sendiri |
 | 11 | Deploy Vercel → buka 4 route | 200, dan `curl -I` menunjukkan `X-Robots-Tag: noindex` |
 
+Langkah 6 juga bukan formalitas: payload `{ parentEmail, pin }` baru ditulis 31 Juli 2026 dan
+belum pernah menyentuh Supabase mana pun — yang sudah terbukti hanya RPC yang dipanggilnya.
+
 Langkah 9 dan 10 bukan formalitas: keduanya **terbukti lolos** di database tanpa migrasi 0021
 (lihat `supabase/README.md` §Audit). Kalau di project barumu keduanya ikut lolos, migrasinya
 belum masuk.
 
-⚠️ **Definisi Selesai T0 belum boleh dicentang** sebelum 1–11 lolos. Yang sudah terbukti di repo
+⚠️ **Definisi Selesai T0 belum boleh dicentang** sebelum 1–11 (termasuk 6b) lolos. Yang sudah terbukti di repo
 tidak menggantikan ini — Postgres lokal bukan Supabase, dan `pnpm build` bukan deploy.
 
 ---

@@ -37,7 +37,7 @@ bukan konfigurasi yang salah.
 | `migrations/0004_view_security_invoker.sql` | view pakai hak pemanggil + putus rekursi RLS | ✅ jalan |
 | `migrations/0005_rpc_surface.sql` | cabut EXECUTE helper definer dari `anon` | ✅ jalan |
 | `migrations/0006_verify_child_pin.sql` | verifikasi PIN di Postgres (pgcrypto), service role saja | ✅ jalan |
-| `migrations/0007_login_by_family_pin.sql` | `find_child_by_pin()` + `family_pin_taken()`, rate limit per keluarga | ✅ jalan |
+| `migrations/0007_login_by_family_pin.sql` | `find_child_by_pin()` *(dihapus di 0022)* + `family_pin_taken()`, rate limit per keluarga | ✅ jalan |
 | `migrations/0008_wallet_instrument.sql` | jenis instrumen Grow jadi kolom, bukan tebakan dari id | ✅ jalan |
 | `migrations/0009_no_direct_writes.sql` | cabut hak tulis anak — anak tidak lagi bisa mencetak uang | ✅ jalan |
 | `migrations/0010_no_overdraft.sql` | saldo negatif jadi mustahil, bukan sekadar dilaporkan | ✅ jalan |
@@ -52,7 +52,8 @@ bukan konfigurasi yang salah.
 | `migrations/0019_parent_profiles.sql` | **BARU (T0)** profil ortu: nama · telepon · negara/provinsi/kota | ⏳ belum dijalankan |
 | `migrations/0020_signup_bootstrap.sql` | **BARU (T0)** sign up → `families` + `parents` + `parent_profiles`, satu transaksi | ⏳ belum dijalankan |
 | `migrations/0021_pin_rules_on_create.sql` | **BARU (T0)** aturan PIN berlaku juga saat anak dibuat | ⏳ belum dijalankan |
-| `functions/child-login/` | Edge Function: kode keluarga + PIN → JWT ber-claim | ✅ **v4, ACTIVE** |
+| `migrations/0022_child_login_by_parent_email.sql` | **BARU (T0)** login anak pakai email ortu (ADR-0024); `find_child_by_pin()` dihapus | ⏳ belum dijalankan |
+| `functions/child-login/` | Edge Function: **email ortu + PIN** → JWT ber-claim (ADR-0024) | ⏳ diubah, belum di-deploy |
 | `seed.sql` | data uji kanonik (cermin `packages/core/src/seed.ts`) — jalankan **setelah** migrasi | ✅ jalan (`NUMMI1`) |
 
 ---
@@ -123,7 +124,7 @@ di 0021, tempat yang benar-benar dibaca saat memeriksa skema.
 
 Sesi ini tidak punya kredensial Supabase, jadi verifikasinya dilakukan di **Postgres 16 lokal**
 dengan stub skema `auth` (tabel `auth.users`, fungsi `auth.uid()`/`auth.role()`, ketiga role
-Supabase). Seluruh **0001–0021 jalan bersih, berurutan, dari database kosong.**
+Supabase). Seluruh **0001–0022 jalan bersih, berurutan, dari database kosong.**
 
 | Uji | Hasil |
 |---|---|
@@ -138,9 +139,21 @@ Supabase). Seluruh **0001–0021 jalan bersih, berurutan, dari database kosong.*
 | RLS: ortu A mengubah profil ortu B | ✅ 0 baris diubah, nilai B utuh |
 | RLS: ortu A menyisipkan baris `parent_profiles` | ✅ ditolak (tidak ada policy INSERT) |
 | RLS: ortu A mengubah profilnya sendiri | ✅ berhasil |
+| **0022** email ortu + PIN benar → tepat 1 anak | ✅ |
+| **0022** email dengan huruf besar & spasi tetap cocok | ✅ dinormalisasi kedua sisi |
+| **0022** email **ortu kedua** di keluarga sama juga berhasil | ✅ (ADR-0024: "ortu mana pun") |
+| **0022** email tak dikenal | ✅ nol baris, **bukan galat** |
+| **0022** PIN salah pada email benar | ✅ nol baris |
+| **0022** PIN keluarga lain tidak membuka keluarga ini | ✅ pencarian dipagari keluarga |
+| **0022** dua anak ber-PIN sama | ✅ nol baris — gagal tertutup, server tidak menebak |
+| **0022** `find_child_by_pin` sudah tidak ada | ✅ satu pintu |
 
 Dua baris "sebelum 0021" itu bukan penalaran — keduanya dijalankan terhadap database kedua yang
 sengaja dibangun tanpa 0021, dan keduanya **lolos**. Cacatnya nyata.
+
+Baris "PIN keluarga lain" juga bukan formalitas: kedua keluarga uji sengaja memakai PIN `135790`
+yang sama persis, jadi pagar keluarga yang bocor akan membuat **dua** anak cocok — dan penutup
+`count(*) = 1` mengubahnya jadi nol baris, yang langsung menggagalkan uji itu.
 
 ### Yang masih TIDAK diperiksa
 
@@ -159,23 +172,30 @@ Angka yang sama dihasilkan `packages/core` (176 test hijau). Itulah gunanya puny
 
 Kode keluarga **`NUMMI1`**, PIN anak **`135790`** — data uji, ganti sebelum keluarga sungguhan.
 
-**Login anak hidup dan sudah diuji ujung ke ujung.** Payload-nya **hanya** `{ familyCode, pin }` —
-tidak ada `childId` (ADR-0012 §A1). Kode keluarga diterima huruf kecil, PIN salah dan kode keluarga
-salah sama-sama `401` dengan pesan seragam, token berumur 12 jam, dan token itu dipakai menembak
-`/rest/v1/wallet_balances` mengembalikan **11 baris, total 484.711** — angka yang sama dengan
-`packages/core`. Tiga sumber independen, satu angka.
+> ⚠️ **Payload berganti 31 Juli 2026.** Deskripsi "diuji ujung ke ujung" di bawah berasal dari
+> repo lama, tempat pengenalnya masih **kode keluarga**. Sejak [ADR-0024](../docs/decisions/0024-login-anak-email-ortu.md)
+> pengenalnya **email ortu**, dan bentuk barunya **belum pernah dijalankan terhadap Supabase**
+> — lihat runbook `docs/DEPLOY.md` §3 langkah 6.
+
+**Payload-nya `{ parentEmail, pin }`** — tidak ada `childId` (ADR-0012 §A1), dan tidak lagi ada
+`familyCode` (ADR-0024). Email dinormalisasi (`trim` + huruf kecil) di Edge Function **dan** di
+SQL-nya. Email salah dan PIN salah sama-sama `401` dengan pesan seragam; token berumur 12 jam.
 
 ```bash
 curl -X POST "$URL/functions/v1/child-login" \
   -H "apikey: $PUBLISHABLE_KEY" -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H 'content-type: application/json' \
-  -d '{"familyCode":"NUMMI1","pin":"135790"}'
+  -d '{"parentEmail":"dev-parent@nummi.local","pin":"135790"}'
 ```
 
-**PIN wajib unik dalam satu keluarga.** Kalau dua anak sama-sama cocok, `find_child_by_pin()`
-mengembalikan nol baris dan login GAGAL — server tidak menebak. Keunikan tidak bisa dijaga unique
-constraint (salt bcrypt berbeda tiap baris), jadi penegakannya di waktu tulis lewat
-`family_pin_taken()`.
+Di repo lama, token hasil login dipakai menembak `/rest/v1/wallet_balances` dan mengembalikan
+**11 baris, total 484.711** — angka yang sama dengan `packages/core`. Tiga sumber independen, satu
+angka. Pemeriksaan itu layak diulang di sini setelah `seed.sql` dijalankan.
+
+**PIN wajib unik dalam satu keluarga.** Kalau dua anak sama-sama cocok,
+`find_child_by_parent_email()` mengembalikan nol baris dan login GAGAL — server tidak menebak.
+Keunikan tidak bisa dijaga unique constraint (salt bcrypt berbeda tiap baris), jadi penegakannya
+di waktu tulis lewat `family_pin_taken()`, yang dipanggil `create_child()` sejak migrasi 0021.
 
 **App anak sudah tersambung** — membaca (Home/Wallets/Sort/Requests) dan **menulis** (Sort).
 Saldo di atas kini bergerak karena anak sungguhan menekan tombol, bukan karena seed.

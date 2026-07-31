@@ -91,6 +91,108 @@ begin
   raise notice 'OK  0019/0020/0021 — sign up, family_code, dan aturan PIN';
 end $$;
 
+-- ── 0022: login anak lewat EMAIL ORTU (ADR-0024) ─────────────────────────────
+--
+-- Blok terpisah supaya ia berdiri di atas keluarga yang sudah dibuat di atas: keluarga A
+-- (sinta@verify.local) punya Arthur ber-PIN 135790; keluarga B (kosong@verify.local) punya Citra
+-- dengan PIN yang sama — pasangan itu yang membuktikan pencarian benar-benar dipagari keluarga.
+
+do $$
+declare
+  v_family_a uuid; v_second_parent uuid; v_n int; v_child uuid;
+begin
+  select family_id into v_family_a from parents
+    where id = (select id from auth.users where email = 'sinta@verify.local');
+
+  -- 1. Jalur bahagia.
+  select count(*) into v_n from find_child_by_parent_email('sinta@verify.local', '135790');
+  if v_n <> 1 then
+    raise exception 'GAGAL 0022: email ortu + PIN benar mengembalikan % baris, harus 1', v_n;
+  end if;
+
+  select child_id into v_child from find_child_by_parent_email('sinta@verify.local', '135790');
+  if (select family_id from children where id = v_child) <> v_family_a then
+    raise exception 'GAGAL 0022: anak yang ditemukan bukan milik keluarga email itu';
+  end if;
+
+  -- 2. Normalisasi. Anak mengetik di keyboard HP yang gemar mengapitalkan huruf pertama.
+  if (select count(*) from find_child_by_parent_email('  Sinta@Verify.Local  ', '135790')) <> 1 then
+    raise exception 'GAGAL 0022: email tidak dinormalisasi (huruf besar / spasi)';
+  end if;
+
+  -- 3. Email tak dikenal → NOL BARIS, bukan galat. Bedanya penting: galat memberi tahu penebak
+  --    bahwa ia menyentuh cabang yang berbeda.
+  if (select count(*) from find_child_by_parent_email('tidakada@verify.local', '135790')) <> 0 then
+    raise exception 'GAGAL 0022: email tak dikenal tidak menghasilkan nol baris';
+  end if;
+
+  -- 4. PIN salah pada email yang benar → nol baris juga.
+  if (select count(*) from find_child_by_parent_email('sinta@verify.local', '000000')) <> 0 then
+    raise exception 'GAGAL 0022: PIN salah tetap mengembalikan baris';
+  end if;
+
+  -- 5. PIN keluarga LAIN tidak boleh membuka keluarga ini. Citra memakai PIN yang sama persis,
+  --    jadi tanpa pagar keluarga, uji ini yang akan menangkapnya.
+  if (select count(*) from find_child_by_parent_email('kosong@verify.local', '135790')) <> 1 then
+    raise exception 'GAGAL 0022: pencarian tidak dipagari keluarga';
+  end if;
+
+  -- 6. ORTU KEDUA di keluarga yang sama juga harus berlaku (ADR-0024: "ortu mana pun").
+  --    Ortu kedua tidak lahir dari trigger sign up — ia diundang, jadi barisnya dibuat langsung
+  --    di sini, persis seperti alur "undang ortu kedua" Tahap 2 no.10.
+  insert into auth.users (email, raw_user_meta_data)
+    values ('ayah@verify.local', '{"full_name":"Pak Ayah"}') returning id into v_second_parent;
+  -- Trigger 0020 sudah membuatkannya keluarga sendiri; pindahkan ke keluarga A, seperti undangan.
+  delete from families where id = (select family_id from parents where id = v_second_parent);
+  insert into parents (id, family_id, display_name, is_primary)
+    values (v_second_parent, v_family_a, 'Pak Ayah', false)
+    on conflict (id) do update set family_id = excluded.family_id, is_primary = false;
+
+  if (select count(*) from find_child_by_parent_email('ayah@verify.local', '135790')) <> 1 then
+    raise exception 'GAGAL 0022: email ortu KEDUA tidak bisa dipakai anak masuk';
+  end if;
+
+  -- 7. Resolusi keluarga untuk rate limit — dipanggil SEBELUM hash disentuh.
+  if find_family_by_parent_email('sinta@verify.local') <> v_family_a then
+    raise exception 'GAGAL 0022: find_family_by_parent_email menunjuk keluarga yang salah';
+  end if;
+  if find_family_by_parent_email('tidakada@verify.local') is not null then
+    raise exception 'GAGAL 0022: email tak dikenal harus menghasilkan null, bukan keluarga';
+  end if;
+
+  -- 8. Pintu lama benar-benar tertutup (ADR-0024 §Konsekuensi 4).
+  if exists (
+    select 1 from pg_proc where proname = 'find_child_by_pin'
+  ) then
+    raise exception 'GAGAL 0022: find_child_by_pin masih ada — dua pintu autentikasi';
+  end if;
+
+  raise notice 'OK  0022 — login anak lewat email ortu, termasuk ortu kedua & pagar keluarga';
+end $$;
+
+-- 9. PIN kembar tetap gagal TERTUTUP lewat jalur baru. Di luar blok DO karena ia butuh
+--    `create_child` yang sengaja dilanggar aturannya — dan aturan itu justru yang menghalangi.
+--    Anak kedua ber-PIN sama disisipkan langsung, meniru data yang sudah terlanjur ada sebelum
+--    migrasi 0021 dipasang.
+do $$
+declare v_family_a uuid;
+begin
+  select family_id into v_family_a from parents
+    where id = (select id from auth.users where email = 'sinta@verify.local');
+
+  -- `extensions.` eksplisit: pgcrypto tidak dipasang di `public`, dan sesi psql biasa tidak
+  -- punya `extensions` di search_path-nya (fungsi-fungsi migrasi menyetelnya sendiri).
+  insert into children (family_id, name, birth_month, birth_year, tier, pin_hash)
+  values (v_family_a, 'Kembar', 1, 2016, 'middle',
+          extensions.crypt('135790', extensions.gen_salt('bf', 10)));
+
+  if (select count(*) from find_child_by_parent_email('sinta@verify.local', '135790')) <> 0 then
+    raise exception 'GAGAL 0022: dua anak ber-PIN sama TIDAK gagal tertutup — server menebak';
+  end if;
+
+  raise notice 'OK  0022 — PIN kembar gagal tertutup (penutup count(*) = 1 ikut terbawa)';
+end $$;
+
 -- ── 0019: RLS parent_profiles ───────────────────────────────────────────────
 -- Di luar blok DO: `set local role` butuh transaksi eksplisit, dan RLS tidak berlaku bagi
 -- superuser — jadi perannya harus benar-benar ditukar, bukan disimulasikan.

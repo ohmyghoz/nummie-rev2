@@ -84,4 +84,5 @@ sed -e "s/__A__/$A/g" -e "s/__B__/$B/g" "$REPO/supabase/verify/checks.sql" > "$T
 tail -n +"$(grep -n '^-- ── 0019: RLS' "$TMP" | cut -d: -f1)" "$TMP" > "$TMP.rls"
 psql -q -d "$DB" -f "$TMP.rls" 2>&1 | grep -v '^$' | sed 's/^/  /'
 
-echo "▸ Selesai — 0001–0021 jalan bersih dan berperilaku sesuai harapan."
+LAST=$(basename "$(ls "$REPO"/supabase/migrations/*.sql | tail -1)" .sql | cut -d_ -f1)
+echo "▸ Selesai — 0001–$LAST jalan bersih dan berperilaku sesuai harapan."

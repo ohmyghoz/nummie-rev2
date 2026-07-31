@@ -56,16 +56,21 @@ export const en: Dictionary = {
     me: 'Me',
   },
 
+  // Anak masuk dengan EMAIL ORTUNYA + PIN sejak ADR-0024 (sebelumnya kode keluarga).
+  // Teks di bawah diambil dari mockup — `parent-mobile.markup.html:8` — karena mockup adalah
+  // sumber kebenaran copy (AGENTS.md §0), dan mockup itulah yang memicu MR-6.
   login: {
-    title: 'Hello!',
-    subtitle: 'Type your family code and your PIN.',
-    familyCode: 'Family code',
-    familyCodeHint: 'The one your grown-up gave you.',
-    pin: 'Your PIN',
-    pinHint: '{length} numbers, only yours.',
+    title: 'Hi there!',
+    subtitle: "Type your grown-up's email, then your PIN.",
+    parentEmail: "Grown-up's email",
+    // Kalimat mockup yang menjelaskan model kepemilikannya dalam satu tarikan napas — dan
+    // alasan terkuat memilih email ortu ketimbang kode keluarga.
+    parentEmailHint: "Kids don't need their own email. Every child account belongs to a grown-up.",
+    pin: 'Your {length}-digit PIN',
+    pinHint: 'Only yours.',
     submit: 'Come in',
     // Satu pesan untuk semua sebab — sama seperti jawaban server.
-    failed: "That didn't work. Check the code and the PIN, then try again.",
+    failed: "That didn't work. Check the email and the PIN, then try again.",
     lockedOut: 'Too many tries. Wait {minutes} minutes and try again.',
     // Dulu berbunyi "...they can see it in their app" — dan itu TIDAK PERNAH benar. `pin_hash`
     // di-bcrypt dan sengaja tidak pernah keluar dari database (migrasi 0006). Ortu tidak bisa
@@ -377,7 +382,9 @@ export const en: Dictionary = {
     privacy: 'Month and year only — we never ask for the exact date.',
     submit: 'Add {name}',
     starterWallets: 'Starts with',
-    created: 'Ready. {name} can sign in with the family code and this PIN.',
+    // Sejak ADR-0024 anak masuk pakai EMAIL ORTU, bukan kode keluarga. Kalimat lama akan
+    // menyuruh ortu memberikan sesuatu yang tidak lagi dipakai layar login.
+    created: 'Ready. {name} signs in with your email and this PIN.',
     nameRequired: 'A name is needed',
     birthMonthInvalid: 'Pick a month between 1 and 12',
     birthYearInvalid: 'That year looks like a typo',

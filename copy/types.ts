@@ -44,13 +44,14 @@ export interface Dictionary {
   nav: Record<'home' | 'wallets' | 'add' | 'missions' | 'me', string>;
 
   /**
-   * Layar masuk anak (ADR-0012 §A1: kode keluarga + PIN, tanpa memilih anak lebih dulu).
+   * Layar masuk anak: **email ortu + PIN** (ADR-0024, menggantikan kode keluarga milik
+   * ADR-0012), tanpa memilih anak lebih dulu (§A1 — tetap berlaku).
    * `failed` sengaja SATU pesan untuk semua sebab — kode salah, PIN salah, atau dua anak
    * ber-PIN sama. Server pun menjawab seragam; kalau layar ini lebih cerewet daripada
    * server, ia membocorkan apa yang server tutup rapat.
    */
   login: Record<
-    'title' | 'subtitle' | 'familyCode' | 'familyCodeHint' | 'pin' | 'pinHint'
+    'title' | 'subtitle' | 'parentEmail' | 'parentEmailHint' | 'pin' | 'pinHint'
     | 'submit' | 'failed' | 'lockedOut' | 'askGrownUp',
     string
   >;

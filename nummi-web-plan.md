@@ -50,7 +50,10 @@ baris `parents`+`parent_profiles` · reset password terkirim & berfungsi · 4 ro
 **termasuk struktur navigasi mockup apa adanya** (bukan "nav kanonik" repo lama).
 
 **Cakupan** (inventaris final diambil dari mockup saat porting):
-1. Login anak (family code + PIN, Edge Function lama).
+1. Login anak (**email ortu + PIN** — ADR-0024, keputusan MR-6; Edge Function lama, payload baru).
+   ⚠️ Layar ini **tidak ada di mockup `/kid`** — satu-satunya yang pernah digambar ada di mockup
+   ortu. Jadi ia **dirancang**, bukan diport; gayanya mengikuti mockup, copy-nya sudah ada di
+   `copy/en.ts` §login.
 2. Home — topbar, saldo, pil ⭐/💎, ringkasan wallet, aktivitas.
 3. **Sort** — DEVIASI D-B: rasio & mode dari `money_rules`; Flexible = sisa ke Unsorted,
    Strict = wajib habis 100% + penjelasan kenapa terkunci.
