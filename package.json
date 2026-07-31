@@ -15,6 +15,7 @@
     "build": "pnpm --filter @nummi/web build",
     "start": "pnpm --filter @nummi/web start",
     "mockups:unpack": "node tools/unpack-mockups.mjs",
+    "inventory:check": "node tools/check-inventory.mjs",
     "regions:build": "node tools/build-regions.mjs",
     "seed:dev": "node tools/seed-dev.mjs"
   },

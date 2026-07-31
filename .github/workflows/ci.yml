@@ -90,6 +90,12 @@ jobs:
             exit 1
           fi
 
+      # Inventaris layar (docs/inventory/) menunjuk ke NOMOR BARIS di berkas generated di atas.
+      # Kalau unpacker berubah, seluruh nomor bergeser sekaligus — tanpa galat apa pun — dan
+      # inventaris berubah dari dokumen jadi kebohongan yang rapi.
+      - name: Jangkar inventaris masih menunjuk tempat yang benar
+        run: pnpm inventory:check
+
   no-secrets:
     name: kunci rahasia tidak bocor ke bundle klien
     runs-on: ubuntu-latest

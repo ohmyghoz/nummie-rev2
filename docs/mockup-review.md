@@ -2,8 +2,10 @@
 
 > Daftar tempat **mockup bertentangan dengan dokumen, ADR, atau dirinya sendiri**.
 >
-> **Per 31 Juli 2026 seluruhnya sudah terjawab** — daftar ini kini jadi catatan *kenapa* tiap
-> layar diport seperti yang diport. Tambahkan baris baru begitu konflik berikutnya ditemukan.
+> **Per 31 Juli 2026 tidak ada lagi yang memblokir Tahap 1.** Daftar ini kini terutama jadi
+> catatan *kenapa* tiap layar diport seperti yang diport. Tambahkan baris baru begitu konflik
+> berikutnya ditemukan — dan menulis inventaris layar memang cara menemukannya (MR-8 … MR-10
+> lahir dari sana).
 >
 > Aturannya (AGENTS.md §0): **mockup menang** sampai Ghozy bilang lain. Berkas di
 > `reference/mockups/` tidak pernah diperbaiki diam-diam — memperbaikinya menghapus bukti
@@ -20,9 +22,10 @@
 | | |
 |---|---|
 | Dibuka | 31 Juli 2026 (Tahap 0) |
-| **Terbuka** | **0** |
+| **Terbuka & memblokir** | **0** |
 | Diputuskan Ghozy | 4 — MR-2 · MR-3 · MR-6 · MR-7 (31 Juli 2026) |
-| Tidak pernah butuh keputusan | 3 — MR-1 · MR-4 · MR-5 (sudah dijawab aturan yang ada) |
+| Tidak pernah butuh keputusan | 5 — MR-1 · MR-4 · MR-5 · MR-8 · MR-9 (sudah dijawab aturan/keputusan yang ada) |
+| **Menunggu, tapi tidak memblokir** | **1 — MR-10** (tujuan tombol tanpa aksi; dijawab saat layar Wallets diport) |
 
 **Tahap 1 tidak lagi diblokir keputusan apa pun.** Yang tersisa dari daftar ini adalah pekerjaan
 porting, bukan pertanyaan.
@@ -36,12 +39,19 @@ porting, bukan pertanyaan.
 | MR-5 | rasio kanonik 40/40/20, mockup diabaikan | AGENTS.md §0 — angka milik `packages/core` |
 | MR-6 | **email ortu + PIN** | ADR-0024 · migrasi 0022 · `child-login` |
 | MR-7 | warna kategori kanonik, seragam | `apps/web/app/tokens.css` |
+| MR-8 | Sort mockup = Strict-only; mode Flexible tak pernah digambar | tercakup **D-B** · `inventory/kid-sort.md` |
+| MR-9 | singkatan `Rp 300k` ikut jadi `formatRp()` | tertutup MR-2 |
+| MR-10 | 4 elemen tanpa handler — **jangan ditebak** | dijawab saat Wallets diport |
 
-Dua di antaranya tidak pernah benar-benar terbuka, dan itu layak dicatat supaya daftar berikutnya
-tidak ikut menggelembung: **MR-1 dan MR-5 sudah dijawab AGENTS.md sebelum ditulis di sini.** §5
-menetapkan streak hilang dari engine sementara UI tetap ikut mockup; §0 menaruh angka di wilayah
-`packages/core`, tempat mockup tidak pernah menang. Mencatatnya tetap berguna — yang keliru adalah
-menyodorkannya sebagai pertanyaan.
+**Lima dari sepuluh tidak pernah benar-benar butuh keputusan**, dan itu layak dicatat supaya
+daftar ini tidak menggelembung jadi antrean palsu di meja Ghozy:
+
+- **MR-1 · MR-5** sudah dijawab AGENTS.md sebelum ditulis di sini — §5 menetapkan streak hilang
+  dari engine sementara UI tetap ikut mockup; §0 menaruh angka di wilayah `packages/core`.
+- **MR-4 · MR-9** hanyalah bentuk lain dari MR-2, yang sudah diputuskan.
+- **MR-8** sudah tercakup deviasi D-B yang disetujui — yang baru cuma cakupannya.
+
+Mencatat semuanya tetap berguna; yang keliru adalah menyodorkannya sebagai pertanyaan.
 
 ---
 
@@ -96,6 +106,77 @@ seolah tinggal menyalin, dan `nummi-web-plan.md` sudah dikoreksi untuk mengataka
 
 Copy-nya sudah tersedia — diambil persis dari mockup ke `copy/en.ts` §login — jadi yang perlu
 dirancang tinggal susunan layarnya, memakai gaya mockup.
+
+---
+
+## MR-8 · Layar Sort hanya menggambar mode Strict — mode default tidak pernah digambar
+
+> ### ✅ Tidak butuh keputusan baru — sudah tercakup deviasi **D-B** yang kamu setujui
+>
+> Dicatat karena D-B tertulis seolah hanya soal *teks* (`"40/40/20 default"`), padahal yang
+> berbeda juga **perilaku tombolnya**. Yang memport tanpa membaca ini akan menyalin perilaku
+> Strict ke mode Flexible tanpa sadar.
+
+**Bukti:** `kid-mobile.source.jsx:904`
+
+```js
+pushCta('Put money in wallets', remainder === 0 && allocated > 0, confirm)
+```
+
+Tombolnya **tidak aktif kecuali seluruh uang teralokasi**, dan `confirm()` (:894) menyetel
+`nd.unsorted = 0` tanpa syarat. Itu persis definisi **Strict**.
+
+Tapi Strict **default MATI** (ADR-0005), dan `create_child()` menyetel `mode = 'flexible'`. Mode
+default produk — sisa boleh tinggal di Unsorted — **tidak pernah digambar sama sekali**.
+
+Begitu juga penjelasan "kenapa tombol terkunci" yang diminta `nummi-web-plan.md` Tahap 1 no.3: ia
+hanya masuk akal di Strict, dan mockup tidak memuatnya.
+
+| Mode | CTA aktif saat | Setelah konfirmasi |
+|---|---|---|
+| **Flexible** (default) | `allocated > 0` | sisa **tetap** di Unsorted |
+| **Strict** | `remainder === 0 && allocated > 0` — persis mockup | Unsorted jadi 0 |
+
+Rinciannya di [`inventory/kid-sort.md`](inventory/kid-sort.md) §6.
+
+---
+
+## MR-9 · Tiga format nominal dalam satu app anak
+
+> ### ✅ Tertutup MR-2 — dicatat supaya penyisirannya tidak terlewat
+
+Selain dua yang sudah tercatat di MR-2/MR-4, ada bentuk ketiga: singkatan **`k`**.
+
+| Bentuk | Contoh | Di mana |
+|---|---|---|
+| koma, berspasi | `Rp 300,000` | `rp()` — Home, dreams (`kid-mobile.source.jsx:44`) |
+| titik, berspasi | `Rp 100.000` | ditulis tangan di badan misi (`:647`) |
+| **singkatan k** | `Rp 300k` · `Rp 30k` | kartu Save & Grow (`:460`, `:475`) |
+
+Ketiganya jadi `formatRp()` → `Rp300.000`. Muat di ruang kartu, jadi singkatan `k` tidak perlu
+dipertahankan — tapi **periksa lebar kartu Grow** saat porting, karena subnya paling padat
+(`Rp30.000 + Rp750 interest`).
+
+---
+
+## MR-10 · Elemen tanpa aksi di mockup — jangan ditebak
+
+> ### ⚠️ Perlu jawabanmu **saat layar Wallets diport**, bukan sekarang
+
+Empat elemen digambar tapi **tidak punya handler sama sekali** di mockup:
+
+| Elemen | Baris | Dugaan wajar — **bukan** keputusan |
+|---|---|---|
+| Tombol `•••` di judul Wallets | `:405` | menu |
+| Tombol `🧾` di judul Wallets | `:405` | riwayat |
+| Kartu dashed `+ New envelope` / `+ New dream` / `+ Grow money` | `:434` | buat baru |
+| Kartu dashed **`+ Giving history`** | `:468` | **lihat riwayat** — tidak konsisten dengan tiga dashed lain yang berarti "buat baru" |
+
+Yang terakhir itu keanehan mockup, bukan salah baca: bentuk visual yang sama dipakai untuk dua
+makna berbeda di layar yang sama.
+
+Dicatat di sini alih-alih ditebak diam-diam — menebak tujuan tombol adalah cara paling halus untuk
+menyimpang dari mockup sambil merasa sedang mematuhinya.
 
 ---
 
