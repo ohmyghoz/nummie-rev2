@@ -1,87 +1,113 @@
 # Laporan progres — 1 Agustus 2026
 
 Sesi ini menyambung dari Tahap 0 (selesai & dicentang 31 Juli — lihat riwayat git untuk
-laporan lama). Ghozy minta Tahap 1 & 2 dikerjakan semalam, tanpa pengawasan. Dikerjakan sejauh
-protokol AGENTS.md §3 (ekstrak → inventaris → port → verifikasi berdampingan) memungkinkan
-dalam satu sesi — **bukan keduanya selesai**, dan berkas ini bilang persis sejauh mana.
+laporan lama). Ghozy minta Tahap 1 lalu Tahap 2 dikerjakan semalam, tanpa pengawasan.
+Dikerjakan sejauh protokol AGENTS.md §3 (ekstrak → inventaris → port → verifikasi
+berdampingan) memungkinkan dalam satu sesi — **bukan keduanya selesai**, dan berkas ini
+bilang persis sejauh mana.
 
-> **Ringkas:** empat layar `/kid` (login · Home · Sort · Wallets) hidup di atas Supabase
-> sungguhan, diverifikasi berdampingan di browser, bukan cuma lolos `tsc`. Layar `/kid` lain
-> (8 area) dan seluruh Tahap 2 (`/parent`) **belum disentuh**. Dua cacat produksi nyata
-> ditemukan & ditutup di jalan (CORS Edge Function, resolusi modul webpack) — keduanya akan
+> **Ringkas:** `/kid` (login·Home·Sort·Wallets) dan `/parent` (sign up·onboarding·dashboard·
+> approval inbox) hidup di atas Supabase sungguhan, diverifikasi berdampingan di browser —
+> dan **keduanya benar-benar tersambung**: keluarga yang dibuat lewat sign up ortu sungguhan
+> bisa login sebagai anak di `/kid` dan melihat akunnya sendiri. Sisa layar `/kid` (8 area) dan
+> sisa `/parent` (Send/Take, Money rules, Settings, Jobs/Prizes, Transactions) **belum
+> disentuh**. Tiga cacat produksi nyata ditemukan & ditutup di jalan — dua di antaranya akan
 > menggigit siapa pun yang mencoba deploy tanpanya, bukan cuma sesi ini.
 
 ---
 
 ## 1. Yang hidup & terverifikasi berdampingan
 
-Bukan "lolos typecheck" — ini dicoba di `pnpm dev` + Chrome, dengan keluarga `seed:dev`
-(`dev-parent@nummi.local` / PIN `135790`), dan hasilnya dicocokkan ke `docs/inventory/*.md`.
+Bukan "lolos typecheck" — dicoba di `pnpm dev` + Chrome, dengan data nyata, dan hasilnya
+dicocokkan ke `docs/inventory/*.md` (untuk `/kid`) atau `parent-mobile.markup.html` (untuk
+`/parent`, sejauh ADR-0023 tidak menggantinya — lihat §2).
+
+### `/kid`
 
 | Layar | Sumber | Bukti |
 |---|---|---|
-| **Login `/kid`** | dirancang (T1.1, tidak ada di mockup) | login sungguhan lewat `child-login`, token tersimpan, sesi bertahan |
-| **Shell** | `kid-shell.md` | bottom nav, FAB `＋ Money`, push screen, toast, ring — semua diport, dipakai layar lain |
-| **Home** | `kid-home.md` | render dari `wallet_balances`/`children`/`money_rules` nyata; banner Unsorted **muncul-hilang** sesuai saldo (diuji: hilang setelah Sort) |
-| **Sort** (DEVIASI D-B) | `kid-sort.md` | rasio **40/40/20 dari `money_rules` keluarga**, bukan teks mati — diuji: Rp50.000 → Rp20.000/Rp20.000/Rp10.000, persis rasio DB |
-| **Wallets** | `kid-wallets.md` | akordeon (satu terbuka sekaligus), kartu kantong, cacah nyata (bukan "3 envelopes" mati) |
+| **Login** | dirancang (T1.1, tidak ada di mockup) | login sungguhan lewat `child-login`, token tersimpan |
+| **Shell** | `kid-shell.md` | bottom nav, FAB `＋ Money`, push screen, toast, ring |
+| **Home** | `kid-home.md` | render dari `wallet_balances`/`children`/`money_rules` nyata; banner Unsorted muncul-hilang sesuai saldo |
+| **Sort** (DEVIASI D-B) | `kid-sort.md` | rasio dari `money_rules` keluarga, bukan teks mati |
+| **Wallets** | `kid-wallets.md` | akordeon, kartu kantong, cacah nyata |
 
-**Alur uang nyata yang sudah dibuktikan jalan, ujung ke ujung:** anak login → lihat Rp50.000 di
-Unsorted → buka Sort → konfirmasi → ledger tertulis lewat `POST /api/kid/sort` → saldo
-Spend/Save/Give ter-update → Home & Wallets menampilkan angka baru tanpa refresh manual.
+### `/parent`
 
-## 2. Dua cacat produksi ditemukan & ditutup
+| Layar | Sumber | Bukti |
+|---|---|---|
+| **Sign in** | mockup (Login screen, varian "grown-up") | "Welcome back" / "Sign in to be the bank." apa adanya |
+| **Sign up** | dirancang (DEVIASI D-D) | email+password+nama+telp+negara/provinsi/kota (dropdown 38 provinsi dependent) |
+| **Reset password** | dirancang (DEVIASI D-D) | request-link jalan (dipakai `requestPasswordReset`, belum diuji tautan diklik sungguhan malam ini) |
+| **Onboarding "Add a child"** | rencana T2 no.4 | `create_child` RPC nyata, PIN 6 digit ditegakkan server-side, family_code tergenerasi |
+| **Dashboard** | mockup (disederhanakan — lihat §3) | daftar anak + saldo nyata per anak |
+| **Approval inbox** | mockup (disederhanakan) | approve/decline/talk-about-it/done, `packages/core/requests.ts` apa adanya |
 
-Sama seperti laporan T0 — ditemukan karena dicoba sungguhan, bukan dibaca kodenya.
+## 2. Loop yang benar-benar dibuktikan tersambung
 
-1. **`child-login` Edge Function tidak punya CORS.** Berhasil dipanggil `curl` (server-to-server,
-   Tahap 0), tapi gagal diam-diam dari browser sebagai `TypeError: Failed to fetch` — preflight
-   `OPTIONS` tidak ditangani. **Ini bukan cuma masalah dev lokal**: origin Vercel selalu beda dari
-   origin Supabase, jadi produksi akan kena juga. Ditutup: header CORS + handler `OPTIONS`,
-   di-deploy ulang (`child-login` sekarang versi 6).
-2. **Import gaya NodeNext (`./x.js`) di `@core`/`copy/` lolos `tsc` tapi mati di webpack Next.**
-   `moduleResolution: bundler` milik `tsc` cukup toleran; bundler Next tidak, sampai diberi tahu
-   `resolve.extensionAlias` di `next.config.mjs`. Tanpa ini: build lolos typecheck, lalu halaman
-   kosong di runtime dengan `Module not found` di console — persis kelas kegagalan yang sudah
-   diperingatkan `docs/DEPLOY.md` untuk masalah serupa (`outputFileTracingRoot`).
+Ini yang paling penting malam ini, lebih dari jumlah layar: **dua tahap yang selama ini
+dikerjakan sejajar sekarang benar-benar satu sistem.**
 
-Keduanya baru kelihatan begitu ada layar yang **sungguhan** memanggil `@copy`/`@core` dan Edge
-Function dari browser — sebelum sesi ini, tidak ada satu pun kode aplikasi yang melakukannya.
+Diuji langsung di browser, urut:
+1. Sign up ortu baru (`bu-sinta-test2@nummi.local`) → trigger 0020 melahirkan
+   `families`+`parents`+`parent_profiles` → **langsung masuk**, tanpa verifikasi email
+   (ADR-0023).
+2. Onboarding → "Add a child" (Dinda, PIN `246810`) → `create_child` RPC → family_code
+   `FFRM7G` tergenerasi (6 karakter, alfabet tanpa-ambigu).
+3. Dashboard menampilkan Dinda, saldo Rp0 — data nyata, bukan seed.
+4. **Sign out dari sesi ortu, buka `/kid`, login sebagai Dinda pakai email ortu +
+   PIN `246810` → berhasil, "Hi, Dinda!" dengan akun kosong yang benar.**
 
-## 3. Arsitektur baru: siapa yang boleh menulis ledger
+Langkah 4 itu yang membuktikan arsitekturnya utuh, bukan cuma dua permukaan yang kebetulan
+sama-sama hidup.
 
-`packages/core` murni fungsi (menghitung rencana, tidak pernah menyentuh DB — `sortPlan()`,
-`movePlan()`, dst. sengaja begitu). Tidak ada RPC Postgres untuk Sort/Move/dll (beda dengan
-`create_child`, yang memang ada). Jalur yang dipakai, dan alasannya:
+**Yang BELUM diuji dalam loop ini** (jujur, ini beda dari Definisi Selesai T2 penuh):
+allowance → Sort → **cash-out** → approve → fulfil → riwayat konsisten dua sisi. Layar
+Cash-out sisi anak belum diport (task T1 §15), jadi approval inbox baru diuji jalur
+approve/decline/talk-about-it-nya saja, belum end-to-end dengan request sungguhan dari anak.
 
-1. Klien mengirim token anak ke **route handler Next.js** (`/api/kid/sort`), bukan langsung ke Postgres.
-2. Route handler memverifikasi identitas dengan memasang token itu sebagai `accessToken` pada
-   client sekali-pakai lalu memanggil `auth_child_id()` — **Postgres/PostgREST sendiri yang
-   memvalidasi tanda tangan JWT**, bukan server Next.js. Ini sengaja: `CHILD_JWT_SECRET` menurut
-   `docs/DEPLOY.md` §2 tidak boleh dipasang di Vercel, jadi server Next.js tidak pernah mendekode
-   token itu sendiri.
-3. Setelah identitas terverifikasi, route handler menghitung ulang `sortPlan()` dari data
-   **server** (bukan payload klien) dan menulis `ledger_entries` pakai `SUPABASE_SECRET_KEY`
-   (service role) — satu-satunya jalan sejak migrasi 0009 mencabut hak tulis langsung `authenticated`.
+## 3. Tiga cacat produksi ditemukan & ditutup
 
-Pola ini (`apps/web/lib/kid/server.ts`) dipakai ulang untuk Move/Cash-out/Give/Grow nanti — sudah
-teruji lewat Sort, tinggal disalin bentuknya.
+Ketiganya baru kelihatan begitu ada kode aplikasi **sungguhan** yang menyentuhnya — sama
+seperti pola sesi-sesi sebelumnya.
 
-## 4. Simplifikasi & keputusan yang diambil sendiri (dicatat, bukan disembunyikan)
+1. **`child-login` Edge Function tidak punya CORS.** Gagal diam-diam dari browser sebagai
+   `Failed to fetch` — preflight `OPTIONS` tidak ditangani. Berlaku juga di produksi (origin
+   Vercel selalu beda dari origin Supabase). Ditutup: header CORS + handler `OPTIONS`,
+   di-deploy ulang.
+2. **`next.config.mjs` butuh `webpack.resolve.extensionAlias`.** Import gaya NodeNext (`./x.js`)
+   di `@core`/`copy/` lolos `tsc` tapi mati di runtime webpack tanpa ini.
+3. **`Confirm email` menyala di setelan Supabase Auth project ini** — bertentangan langsung
+   dengan ADR-0023 ("ortu langsung masuk setelah daftar; verifikasi email jalan di belakang").
+   Kalau dibiarkan, setiap sign up akan macet menunggu klik email yang menurut keputusan
+   produk sendiri seharusnya tidak menghalangi apa pun. **Dimatikan lewat dashboard** —
+   ini bukan keputusan produk baru, cuma menyelaraskan config project ke keputusan yang sudah
+   dikunci Ghozy di Tahap 0.
 
-Karena tidak ada Ghozy untuk ditanya semalam, beberapa hal diputuskan sendiri mengikuti pola
-yang sudah ada di inventaris/AGENTS.md, bukan ditebak bebas:
+Ditemukan juga (lebih kecil): `supabase-js` menolak `auth.getUser()` dipanggil di client yang
+sudah dikonfigurasi opsi `accessToken` — pola yang sama dipakai `lib/kid/server.ts` &
+`lib/parent/server.ts` untuk memverifikasi identitas lewat RPC. Solusinya: client kedua yang
+polos, khusus untuk `getUser(token)`.
 
-- **Grow di Wallets**: kartu instrumen ditampilkan (saldo, tombol Harvest) **tanpa** simulasi
-  bunga/spread harian (`daily_prices`) — itu porsi Grow penuh (§9 rencana), belum digarap.
-- **Sort tidak punya slider geser manual** untuk mode Flexible yang `editable`. Rencana
-  ditampilkan & dikonfirmasi apa adanya; mengubah slot satu-satu belum diport.
-- **Tombol `•••`/`🧾` di Wallets** dan **kartu dashed**: diport TANPA `onClick`, persis
-  peringatan `kid-wallets.md` §1 & §5 ("jangan mengarang"). Tujuannya masih belum diputuskan.
-- Tab **Missions** dan **Me** menampilkan pesan "belum dibangun" alih-alih dikosongkan diam-diam
-  — supaya jelas ini batas sesi, bukan bug.
+## 4. Simplifikasi & keputusan yang diambil sendiri
 
-Tidak ada yang di atas menyentuh uang/PIN/RLS — semuanya di permukaan visual/UX.
+Tidak ada Ghozy untuk ditanya semalam — berikut yang diputuskan sendiri, semuanya reversibel,
+tidak ada yang menyentuh uang/PIN/RLS:
+
+- **Dashboard `/parent` satu-kartu-per-anak**, bukan chip-picker + satu ring gabungan seperti
+  mockup (yang aslinya menampilkan satu anak terpilih). Alasannya waktu, bukan keputusan
+  desain sadar — kalau diteruskan, layak ditinjau ulang vs mockup.
+- **Approval inbox** hanya menulis ledger untuk `cash_out`/`give_away`. `grow_in`/`harvest`/
+  `mission_claim` bisa approve/decline/talk (status berubah, database konsisten), tapi TIDAK
+  menulis ledger/💎 — itu bagian Grow/Missions penuh yang belum digarap.
+- **Copy baru** (`parentSignIn`/`parentSignUp`/`parentResetPassword` di `copy/{en,id}.ts`)
+  ditulis sendiri mengikuti gaya `login`/`addChild` yang sudah ada — `parentAuth` lama (OTP)
+  sengaja TIDAK disentuh/dihapus, sudah retired sejak ADR-0023 dan dijaga tipe untuk alasan
+  yang sama dengan sisa kamus.
+- **Grow di Wallets**: kartu instrumen ditampilkan tanpa simulasi bunga/spread harian.
+- **Sort tidak punya slider geser manual** untuk mode Flexible.
+- **Tombol `•••`/`🧾` di Wallets** dan **kartu dashed**: diport TANPA `onClick`, sesuai
+  peringatan `kid-wallets.md` — jangan mengarang tujuannya.
 
 ## 5. Sama sekali belum disentuh
 
@@ -89,29 +115,27 @@ Tidak ada yang di atas menyentuh uang/PIN/RLS — semuanya di permukaan visual/U
 Add money · Move money · Cash-out request · Dreams (buat/progress/batalkan) · Give (sisi anak) ·
 Grow penuh (TD/Gold/Forex + Harvest + spread) · Missions/Jobs/Prizes/Me · Activity + filter tanggal.
 
-### `/parent` (Tahap 2) — **nol baris kode**
-Sign up · login · reset password · onboarding Add a child · dashboard · approval inbox
-(approve≠fulfil) · Send/Take · Money rules editor · Settings · Jobs/Prizes builder · Transactions.
+### `/parent` (Tahap 2 lanjutan)
+Send/Take money · Money rules editor (Strict/Flexible, auto-split) · Settings (allowance, bank
+rates, today's prices) · Jobs/Prizes builder · Transactions · Insight · undang ortu kedua.
 
-Konsekuensi konkret: **money_rules keluarga `seed:dev` yang dipakai menguji Sort di atas
-di-insert manual lewat SQL** (bukan lewat UI ortu, karena UI-nya belum ada) — dicatat di sini
-supaya jelas itu bukan alur produk yang sudah teruji, cuma cara membuktikan Sort bekerja.
+Konsekuensi konkret: **`money_rules` untuk keluarga `seed:dev`** (dipakai menguji Sort di
+sesi Tahap 1) **masih di-insert manual lewat SQL**, bukan lewat Money rules editor — editornya
+belum ada. Keluarga baru (`Bu Sinta`, `FFRM7G`) yang dibuat sesi ini TIDAK punya `money_rules`
+sama sekali, jadi Sort untuk Dinda akan menunjukkan "tidak ada yang bisa ditempatkan" sampai
+Money rules editor ada atau baris itu diisi manual juga.
 
-## 6. Kenapa berhenti di sini, bukan dipaksa "selesai" kedua tahap
+## 6. Yang perlu Ghozy lakukan
 
-`AGENTS.md` §3 ada karena versi cepat dari proses ini — lompat dari baca mockup langsung ke kode
-tanpa inventaris, tanpa verifikasi berdampingan — adalah persis yang membuat repo lama menyimpang.
-Mengarang sisa 8 layar `/kid` dan seluruh `/parent` semalam demi mencentang tugas akan menghasilkan
-pekerjaan yang harus dibongkar lagi, bukan progres. Yang dipilih: kerjakan lebih sedikit, tapi
-setiap layar yang diklaim "jalan" sungguh sudah dicoba dengan data nyata.
-
-## 7. Yang perlu Ghozy lakukan
-
-1. **Baca §4** — beberapa keputusan kecil diambil sendiri, semuanya reversibel, tidak ada yang
-   menyentuh uang.
-2. **Coba sendiri**: `pnpm dev`, buka `/kid`, masuk `dev-parent@nummi.local` / PIN `135790`.
-3. Belum di-`git push` — commit ada di lokal (`213293b`), menunggu direview dulu sebelum naik ke
-   `origin/main`.
-4. Kalau lanjut: layar berikutnya yang paling murah adalah **Move money** (memakai ulang pola
-   route handler yang sama dengan Sort), lalu Cash-out (butuh sedikit tabel `requests`).
-   Tahap 2 baru bisa mulai kapan saja — tidak diblokir keputusan apa pun, cuma belum ada waktu.
+1. **Baca §3 & §4** — satu setelan Supabase (`Confirm email`) diubah, dan beberapa keputusan
+   kecil diambil sendiri. Tidak ada yang menyentuh uang, tapi §4 baris pertama (layout
+   Dashboard) layak dilihat lebih dulu kalau mau lanjut ke arah mockup persis.
+2. **Coba sendiri**: sign up ortu baru di `/parent`, atau pakai akun uji yang sudah ada —
+   `bu-sinta-test2@nummi.local` / `nummi-parent-test-pw`, anak Dinda PIN `246810`,
+   family code `FFRM7G`. Data ini masih di database, tidak dibersihkan (tidak menyentuh
+   keluarga lain).
+3. Dua commit lokal (`213293b` Tahap 1, `a5d1ed2` Tahap 2), belum di-`git push` — menunggu
+   direview sebelum naik ke `origin/main`.
+4. **Kalau lanjut**, urutan termurah: kid-side Cash-out (memakai ulang pola route handler
+   Sort) → itu yang membuka pengujian approval inbox penuh (approve→fulfil→ledger) dan
+   menutup Definisi Selesai T2 yang sesungguhnya.
