@@ -46,8 +46,110 @@ bukan konfigurasi yang salah.
 | `migrations/0013_settings_tables.sql` | uang saku (per anak) · bunga bank (per keluarga) · harga harian (global) | ✅ jalan |
 | `migrations/0014_deposit_terms.sql` | tenor + rate + tanggal mulai deposito, dibekukan saat approve | ✅ jalan |
 | `migrations/0015_jobs_prizes_gems.sql` | `jobs` · `prizes` · **`gem_entries` append-only** + view saldo | ✅ jalan |
+| `migrations/0016_plan_resolver.sql` | `my_family_is_pro()` — resolver plan untuk ortu & anak sekaligus | ✅ jalan |
+| `migrations/0017_console_login_attempts.sql` | rate limiting gerbang console (ADR-0021) | ✅ jalan |
+| `migrations/0018_set_child_pin.sql` | ganti PIN anak — ortu MENGGANTI, tidak pernah MELIHAT | ✅ jalan |
+| `migrations/0019_parent_profiles.sql` | **BARU (T0)** profil ortu: nama · telepon · negara/provinsi/kota | ⏳ belum dijalankan |
+| `migrations/0020_signup_bootstrap.sql` | **BARU (T0)** sign up → `families` + `parents` + `parent_profiles`, satu transaksi | ⏳ belum dijalankan |
+| `migrations/0021_pin_rules_on_create.sql` | **BARU (T0)** aturan PIN berlaku juga saat anak dibuat | ⏳ belum dijalankan |
 | `functions/child-login/` | Edge Function: kode keluarga + PIN → JWT ber-claim | ✅ **v4, ACTIVE** |
 | `seed.sql` | data uji kanonik (cermin `packages/core/src/seed.ts`) — jalankan **setelah** migrasi | ✅ jalan (`NUMMI1`) |
+
+---
+
+## Audit: migrasi 0001–0018 vs auth ortu baru (31 Juli 2026)
+
+ADR-0023 mengganti auth ortu dari OTP tanpa password menjadi **email + password + reset, dengan
+pendaftaran publik**. Migrasi 0001–0018 semuanya ditulis untuk dunia OTP, tempat akun ortu dibuat
+tangan lewat Admin API. Rencana Tahap 0 no.8 meminta pemeriksaan apakah ada yang menyentuh asumsi
+itu. Hasilnya:
+
+### Tidak ada yang perlu diubah
+
+| Diperiksa | Kenapa tetap benar |
+|---|---|
+| `parents.id → auth.users(id)` (0001) | Identitasnya tetap sebuah baris `auth.users`. Yang berubah **cara barisnya lahir** (sign up, bukan Admin API), bukan apa yang menunjuknya |
+| RLS `auth.uid()` (0002, 0004) | `auth.uid()` diisi Supabase Auth dari JWT — sama saja apakah sesinya berasal dari OTP atau password |
+| `auth_family_id()` (0004) | Menurunkan keluarga dari `parents`, tidak pernah dari cara masuk |
+| Seluruh jalur anak (0003, 0006, 0007, 0012, 0018) | ADR-0012 tidak berubah. Anak tidak punya email, jadi tidak ada persinggungan |
+
+Itu bukan kebetulan: 0002 sengaja memisahkan **sumber identitas** dari **cara masuk**, dan
+pemisahan itulah yang membuat pergantian metode auth tidak menyentuh satu policy pun.
+
+### Yang kurang adalah penambahan, bukan perbaikan
+
+Yang ditemukan justru **ketiadaan**, dan yang paling besar hampir tidak terlihat karena bentuknya
+"tidak ada berkas":
+
+**Tidak pernah ada `create_family()`.** `create_child()` ada sejak 0012, tapi tidak ada satu pun
+jalur yang membuat `families` + `parents`. Tidak perlu ada — di dunia OTP keduanya diisi tangan,
+dan pemeriksaan ADR-0022 mengonfirmasi bentuknya: 1 akun auth, 1 baris `parents`. Pendaftaran
+publik tidak punya tangan. → **0020**.
+
+**Profil ortu tidak punya tempat tinggal.** Formulir sign up menanyakan nama, telepon, dan wilayah
+(ADR-0023). → **0019**.
+
+### Cacat yang ikut ditemukan — tidak berkaitan dengan auth, tapi nyata
+
+**`create_child()` tidak menegakkan satu pun aturan PIN.** ADR-0012 §A2 mengunci PIN 6 digit +
+unik dalam keluarga. `set_child_pin()` (0018) menegakkan keduanya; `create_child()` (0012, ditulis
+ulang di 0013) langsung `crypt()` tanpa memeriksa apa pun.
+
+Arahnya terbalik dari yang berguna: **pembuatan** adalah jalur onboarding yang dilewati setiap
+keluarga, **penggantian** adalah jalur langka. Selama pemanggilnya cuma tangan yang menyiapkan
+keluarga uji, ini tidak pernah terlihat. Setelah pendaftaran publik, pemanggilnya formulir yang
+diisi ortu mana pun. → **0021**.
+
+Bahwa `validateChild()` di `packages/core` memeriksanya bukan pembelaan — itu persis bentuk
+kegagalan yang diperingatkan 0009 dan diulang 0018: aturan yang hanya dijaga app akan bocor lewat
+jalur tulis berikutnya yang lupa memanggilnya.
+
+**Akibat PIN kembar, diverifikasi bukan diperkirakan.** `find_child_by_pin()` (0007) ditutup
+`where (select count(*) from m) = 1` — ia sengaja menolak kecocokan ganda, karena "kode keluarga +
+PIN" harus menunjuk tepat satu anak. Dijalankan terhadap database tanpa 0021, dua anak ber-PIN
+`1234` menghasilkan **0 baris**: bukan login yang tertukar, tapi **dua anak terkunci permanen dari
+uangnya sendiri**, dengan layar yang hanya bisa bilang "PIN salah" padahal PIN-nya benar. Ortu
+tidak bisa membandingkan — `pin_hash` di-bcrypt dan tidak pernah keluar dari database (0006).
+
+Itu persis pemulihan-mustahil yang dicatat ADR-0022, kali ini dibuat sendiri di jalur pembuatan.
+
+**Komentar usang di 0001.** Baris di dekat `failed_pin_attempts` masih berbunyi *"4 digit = 10.000
+kombinasi"*, tertinggal dari sebelum K15 menyatukan angka yang sempat ditulis 4, 4–6, dan 6 di tiga
+tempat. Skemanya sendiri tidak pernah membatasi panjang. Migrasi lama **tidak disunting** — ia
+riwayat yang sudah dijalankan orang lain — jadi koreksinya dipasang sebagai `comment on column`
+di 0021, tempat yang benar-benar dibaca saat memeriksa skema.
+
+### Diverifikasi terhadap Postgres sungguhan (31 Juli 2026)
+
+Sesi ini tidak punya kredensial Supabase, jadi verifikasinya dilakukan di **Postgres 16 lokal**
+dengan stub skema `auth` (tabel `auth.users`, fungsi `auth.uid()`/`auth.role()`, ketiga role
+Supabase). Seluruh **0001–0021 jalan bersih, berurutan, dari database kosong.**
+
+| Uji | Hasil |
+|---|---|
+| `insert into auth.users` → `families` + `parents` + `parent_profiles` | ✅ satu baris masing-masing, `is_primary = true` |
+| `family_code` = 6 karakter, alfabet tanpa-ambigu | ✅ cocok `^[23456789ABCDEFGHJKMNPQRTUVWXYZ]{6}$` |
+| Dua pendaftaran → dua keluarga, kode berbeda | ✅ |
+| `country` default `'ID'` saat metadata kosong | ✅ |
+| `create_child()` menolak PIN 4 digit | ✅ *(sebelum 0021: **diterima**)* |
+| `create_child()` menolak PIN kembar dalam keluarga | ✅ *(sebelum 0021: **diterima**)* |
+| PIN sama di keluarga **lain** tetap boleh | ✅ |
+| RLS: ortu A membaca `parent_profiles` | ✅ 1 baris — miliknya saja, bukan ortu kedua |
+| RLS: ortu A mengubah profil ortu B | ✅ 0 baris diubah, nilai B utuh |
+| RLS: ortu A menyisipkan baris `parent_profiles` | ✅ ditolak (tidak ada policy INSERT) |
+| RLS: ortu A mengubah profilnya sendiri | ✅ berhasil |
+
+Dua baris "sebelum 0021" itu bukan penalaran — keduanya dijalankan terhadap database kedua yang
+sengaja dibangun tanpa 0021, dan keduanya **lolos**. Cacatnya nyata.
+
+### Yang masih TIDAK diperiksa
+
+Postgres lokal bukan Supabase. Yang belum terbukti: trigger `auth.users` dipanggil oleh **Supabase
+Auth yang sungguhan** (di sini `auth.users` diisi `insert` biasa), pengiriman email reset password,
+dan perilaku `service_role` di PostgREST. **Verifikasinya ada di `docs/DEPLOY.md` §Runbook T0**,
+dan Definisi Selesai T0 belum boleh dicentang sebelum itu lolos.
+
+---
 
 ## Keadaan sekarang (29 Juli 2026)
 
