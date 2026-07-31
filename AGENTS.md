@@ -37,7 +37,7 @@ otomatis · Rapor Literasi · Growth Reward · paywall · slot iklan.
 nummi/
 ├── AGENTS.md · nummi-web-plan.md
 ├── reference/mockups/        ← 4 HTML mockup, READ-ONLY, sumber kebenaran UI
-├── packages/core/            ← TRANSPLANTASI dari repo lama (ledger engine, 172 test) — jangan tulis ulang
+├── packages/core/            ← TRANSPLANTASI dari repo lama (ledger engine, 223 test) — jangan tulis ulang
 ├── supabase/                 ← TRANSPLANTASI: migrasi 0001–0018 + Edge Function child-login
 ├── docs/decisions/           ← TRANSPLANTASI: ADR (lihat §5 mana yang batal)
 ├── docs/mockup-review.md     ← daftar konflik mockup-vs-dokumen untuk ditinjau Ghozy
@@ -103,7 +103,12 @@ nummi/
 - **Produksi mulai kosong** — tidak ada seed demo. Seed kanonik `packages/core/src/seed.ts`
   tetap ada **untuk test & `pnpm seed:dev` saja** (1 keluarga uji + 1 anak Middle).
 - Default sistem (bukan data): auto-split 40/40/20, mode Flexible, wallet Save bawaan "Free savings".
-- Format angka tampilan: ikuti mockup (lihat §0 — konflik format dicatat, keputusan final milik Ghozy).
+- **Format rupiah: `formatRp()` dari `packages/core`** — `Rp50.000`, tanpa spasi, titik ribuan.
+  Untuk input, `formatRpInput()` (pemisah ribuan live). **Jangan pernah menulis pemformat kedua.**
+  Ini **pengecualian tertulis** dari "mockup menang" (§0): mockup memakai `Rp 10,000`, yaitu bentuk
+  yang brand system daftarkan di bawah *"Do not mix"*. Diputuskan Ghozy 31 Juli 2026 —
+  `docs/mockup-review.md` §MR-2. Angka yang ditulis tangan di dalam copy kurikulum ikut disisir
+  saat porting (§MR-4), kalau tidak satu layar menampilkan dua format sekaligus.
 
 ## 7. Cara kerja
 
@@ -114,7 +119,7 @@ nummi/
 - Perintah khusus: `merge` = perbarui handoff · `tambah backlog` = perbarui backlog ·
   `audit` = periksa lintas-berkas, laporkan kontradiksi baru.
 - Percakapan & dokumen: **Indonesia**. String UI: **Inggris**.
-- Selesai tahap = Definisi Selesai `nummi-web-plan.md` + `npm test` hijau (termasuk I1) +
+- Selesai tahap = Definisi Selesai `nummi-web-plan.md` + `pnpm test` hijau (termasuk I1) +
   verifikasi berdampingan seluruh layar tahap itu.
 
 ## 8. Yang DILARANG

@@ -1,6 +1,20 @@
 # ADR-0012 — Auth anak: kode keluarga + PIN → JWT ber-claim
 
-**Status:** ✅ diputuskan 28 Juli 2026 · **diamandemen 29 Juli 2026** saat dibangun (lihat bawah)
+> ### ⚠️ PENGENALNYA SUDAH BERGANTI — lihat [ADR-0024](0024-login-anak-email-ortu.md)
+>
+> Sejak 31 Juli 2026 anak masuk dengan **email orang tuanya + PIN**, bukan kode keluarga.
+> Mockup menang (AGENTS.md §0); duduk perkaranya di [`../mockup-review.md`](../mockup-review.md) §MR-6.
+>
+> **Sisa ADR ini tetap berlaku sepenuhnya** — yang berganti hanya pengenalnya, bukan mekanismenya:
+> PIN 6 digit unik per keluarga (A2), tanpa daftar anak (A1), JWT ber-claim, rate limit dua lapis,
+> dan jawaban seragam. Baca berkas ini untuk *kenapa mekanismenya begitu*; baca 0024 untuk
+> *apa yang diketik anak*.
+>
+> Satu bagian yang **perhitungannya berubah**: harga rate limit lapis (b) di §A3 — kuncinya kini
+> alamat email yang bisa diketahui siapa saja, bukan kode acak. Lihat §A4.
+
+**Status:** ✅ diputuskan 28 Juli 2026 · **diamandemen 29 Juli 2026** (A1–A3, saat dibangun) ·
+**diamandemen 31 Juli 2026** (A4 — pengenal berganti)
 
 ## Konteks
 Anak tidak punya email. Supabase Auth tidak punya konsep "PIN di bawah akun ortu". Prototipe akan
@@ -85,6 +99,33 @@ Lapis (b) menangkap rotasi IP palsu — kode keluarga tidak bisa ikut dipalsukan
 agar tebakannya ada gunanya. **Harganya diambil sadar:** siapa pun yang tahu kode keluarga bisa
 mengunci keluarga itu 15 menit. Untuk fase prototipe, satu keluarga terkunci sementara lebih murah
 daripada satu keluarga yang PIN-nya benar-benar ditebak.
+
+> ⚠️ **Perhitungan ini berubah pada 31 Juli 2026 — lihat §A4.** Kalimat *"kode keluarga tidak bisa
+> ikut dipalsukan"* adalah dasar seluruh alinea di atas, dan pengenalnya sekarang email ortu.
+
+### A4. Pengenal berganti jadi email ortu — 31 Juli 2026
+
+Ditetapkan [ADR-0024](0024-login-anak-email-ortu.md). Anak mengetik **email orang tuanya + PIN**;
+ortu mana pun di keluarga itu berlaku. Mockup menang atas ADR ini (AGENTS.md §0) — konfliknya
+tercatat sebagai MR-6 di [`../mockup-review.md`](../mockup-review.md).
+
+Mekanisme di A1–A3 tetap utuh. Yang berubah:
+
+| | Sebelum | Sesudah |
+|---|---|---|
+| Pengenal | `family_code` | email ortu (mana pun di keluarga itu) |
+| RPC | `find_child_by_pin()` | `find_child_by_parent_email()` — yang lama **dihapus**, migrasi 0022 |
+| Payload Edge Function | `{ familyCode, pin }` | `{ parentEmail, pin }` |
+| Lockout lapis (b) | 15 menit | **5 menit** |
+
+Lockout lapis (b) dipendekkan karena alasannya rontok: kuncinya bukan lagi kode acak yang harus
+ditebak, melainkan **alamat email yang bisa diketahui siapa saja**. Siapa pun yang tahu email
+seorang ortu kini bisa mengunci anaknya dari uangnya sendiri berulang-ulang, tanpa menebak apa pun
+— kemampuan yang tidak dimiliki siapa pun di bawah versi sebelumnya. Lima menit adalah peredam,
+bukan penutup; hitungan lengkapnya di ADR-0024 §Konsekuensi.
+
+`family_code` tetap ada dan tetap digenerate (kolomnya `not null unique` sejak migrasi 0001),
+hanya turun jadi pengenal internal.
 
 ### Yang masih menumpang utang
 

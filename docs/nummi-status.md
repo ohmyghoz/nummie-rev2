@@ -321,3 +321,46 @@ font brand tidak pernah dimuat (semua permukaan diam-diam `system-ui`) · Transa
 
 **Status verifikasi:** 219 test lulus · typecheck bersih · ketiga app build tanpa env Supabase
 (kalau salah satu mulai membutuhkannya saat build, itu tanda ia memanggil database di waktu build).
+
+---
+
+## Repo rebuild `nummie-rev2` — Tahap 0 (31 Juli 2026)
+
+> Berkas ini ditulis untuk repo lama `Nummie-test`. Bagian di bawah mencatat apa yang berubah di
+> repo baru, supaya siapa pun yang membaca dari sini tidak menyimpulkan keadaan yang sudah lewat.
+> Sumber kebenaran status repo baru: `README.md` + `docs/mockup-review.md`.
+
+**Yang dibalik dari repo lama:** mockup naik dari "artefak beku" jadi **sumber kebenaran UI**
+(AGENTS.md §0) · 3 project Vercel → **1** · 3 app Next → **1 app multi-route**.
+
+**Keputusan auth berubah dua kali, keduanya tercatat:**
+
+| | Repo lama | Repo baru |
+|---|---|---|
+| Ortu | OTP tanpa password (ADR-0022) | **email + password + reset**, daftar publik (ADR-0023) |
+| Anak | kode keluarga + PIN (ADR-0012) | **email ortu + PIN** (ADR-0024) |
+
+**Empat konflik mockup diputuskan Ghozy 31 Juli 2026** — login anak (email ortu) · format rupiah
+(`Rp50.000`) · warna kategori (seragam ke nilai kanonik) · ragam Inggris (Amerika). Tiga sisanya
+ternyata sudah dijawab AGENTS.md sejak awal. **Nol konflik terbuka**; rinciannya di
+`docs/mockup-review.md`.
+
+**Tiga cacat ditemukan & ditutup saat Tahap 0:**
+
+1. **`grep` ke mockup gagal DIAM** — tiga mockup adalah bundle React, dan pencarian yang memuat
+   kutip ganda mengembalikan negatif palsu. Protokol §3a secara harfiah tidak bisa dipatuhi.
+   Ditutup `tools/unpack-mockups.mjs` + `reference/mockup-source/` yang ikut di-commit.
+2. **`create_family()` tidak pernah ada** — sign up publik tidak punya apa pun untuk dipanggil;
+   ortu akan mendarat di app yang tidak mengenalnya, tanpa satu pun galat. Ditutup migrasi 0020.
+3. **`create_child()` tidak menegakkan aturan PIN** (6 digit + unik per keluarga), padahal
+   `set_child_pin()` menegakkannya. Dibuktikan lolos di database tanpa perbaikan. Akibatnya bukan
+   login tertukar melainkan **dua anak terkunci permanen** dari uangnya sendiri, karena
+   `find_child_by_pin()` menolak kecocokan ganda. Ditutup migrasi 0021.
+
+**Status verifikasi Tahap 0:** 223 test lulus · typecheck bersih · Next build hijau, 4 route
+membalas 200 dengan header keamanan · **migrasi 0001–0022 dijalankan di Postgres 16 sungguhan**
+(`tools/verify-migrations.sh`) berikut uji perilaku sign up, aturan PIN, RLS `parent_profiles`,
+dan login lewat email ortu.
+
+⚠️ **Belum diverifikasi:** apa pun yang butuh Supabase & Vercel sungguhan — 11 langkah runbook di
+`docs/DEPLOY.md` §3. Tahap 0 **belum boleh dicentang selesai**.

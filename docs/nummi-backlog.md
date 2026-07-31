@@ -8,6 +8,36 @@ lengkap ada di `nummi-status.md`.*
 
 ---
 
+## ‼️ BARU 31 Juli 2026 — konsekuensi ADR-0024 (login anak pakai email ortu)
+
+Dua item lahir dari keputusan MR-6. Keduanya **bukan bug hari ini**; keduanya jadi bug begitu
+keluarga sungguhan memakainya.
+
+### N-1. Ortu ganti email → login anak putus, DIAM-DIAM · **Tahap 2**
+
+Anak masuk dengan email ortunya (ADR-0024). Ortu yang menggantinya di Settings tidak punya alasan
+menduga hubungannya, dan anak hanya melihat *"That didn't work"* — pesan yang seragam dengan PIN
+salah, karena memang harus seragam.
+
+**Yang dibangun:** peringatan eksplisit di layar ganti email ortu (*"anakmu masuk dengan alamat
+ini"*), dan idealnya konfirmasi bahwa anak sudah diberi tahu. Di bawah ADR-0012 masalah ini tidak
+pernah ada — kode keluarga tidak pernah berubah.
+
+### N-2. Rate limit lapis keluarga kini berkunci sesuatu yang bisa diketahui · **sebelum uji publik**
+
+ADR-0012 membenarkan lapis (b) dengan *"kode keluarga tidak bisa ikut dipalsukan"*. Kuncinya kini
+alamat email. Siapa pun yang tahu email seorang ortu bisa mengunci anaknya dari uangnya sendiri,
+berulang-ulang, **tanpa menebak apa pun**.
+
+Peredam yang sudah dipasang: lockout lapis keluarga 15 → 5 menit. **Itu peredam, bukan penutup.**
+Penutup butuh sesuatu yang tidak dimiliki penyerang — perangkat yang sudah dikenal, atau kode
+keluarga sebagai faktor kedua (`family_code` sengaja dipertahankan justru untuk membuka jalan ini).
+
+Ditinjau saat ada laporan nyata, **atau sebelum keluarga di luar lingkaran uji diundang** — mana
+yang lebih dulu. Hitungan lengkapnya di ADR-0024 §Konsekuensi 1.
+
+---
+
 ## ‼️ PALING ATAS — bersih-bersih hasil audit (murah, dan menghentikan angka yang saling bertentangan)
 
 > ### ✅ Diaudit ulang 30 Juli 2026 — sebagian besar bagian ini sudah tidak berlaku

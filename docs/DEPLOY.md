@@ -1,238 +1,178 @@
-# Deploy — PWA di Vercel
+# Deploy — satu project Vercel + satu project Supabase
 
-> Ditulis 30 Juli 2026, setelah D4 dijawab ([ADR-0019](decisions/0019-d4-pwa-untuk-mvp.md)):
-> **PWA untuk MVP, bisa dipasang, sengaja tidak offline.**
+> Ditulis 31 Juli 2026 (Tahap 0), menggantikan versi OTP/3-project yang kini di
+> [`archive/DEPLOY-otp-3project.md`](archive/DEPLOY-otp-3project.md).
 >
-> Berkas ini bukan tutorial Vercel. Isinya **yang khusus repo ini** — terutama jebakan yang sudah
-> ditemukan sekali, supaya tidak ditemukan dua kali.
+> Ini bukan tutorial Vercel. Isinya **yang khusus repo ini** — terutama jebakan yang sudah
+> ditemukan sekali, supaya tidak ditemukan dua kali. Sebagian besar diwarisi dari repo lama;
+> di sana harganya sudah dibayar.
+
+## Bentuknya
+
+| | Repo lama | **Repo ini** |
+|---|---|---|
+| Project Vercel | 3 (`kid`, `parent`, `console`) | **1**, root `apps/web` |
+| Route | 3 origin terpisah | `/kid` `/parent` `/parent-web` `/console` |
+| Auth ortu | OTP tanpa password (ADR-0022) | **email + password + reset** (ADR-0023) |
+| Auth anak | kode keluarga + PIN (ADR-0012) | **email ortu + PIN** (ADR-0024) |
+
+Satu project dipilih di AGENTS.md §5. Konsekuensi yang perlu diketahui sejak awal: **`/console`
+kini satu origin dengan app keluarga.** Ia tidak lagi dilindungi oleh "beda project, beda
+setelan" — pemisahannya harus datang dari allowlist email admin dan route handler server
+(Tahap 4, ADR-0021), bukan dari topologi deploy.
 
 ---
 
-## Bentuknya: project terpisah per app, bukan satu
+## 1. Supabase
 
-| Project Vercel | Root Directory | Siapa yang membukanya |
-|---|---|---|
-| `nummi-kid` | `apps/kid` | anak |
-| `nummi-parent` | `apps/parent` | ortu |
-| `nummi-console` | `apps/console` | **operator saja — bersyarat, lihat §Console** |
-
-**Kenapa project terpisah, bukan satu.** Tidak ada satu pun tautan lintas-app di seluruh kode — app
-anak tidak pernah menaut ke app ortu, dan sebaliknya. Menyatukannya di satu origin justru butuh
-`basePath` di ketiga `next.config.mjs` plus menulis ulang setiap `redirect()` dan setiap
-`action="/api/login"`. Origin terpisah adalah jalur yang paling sedikit menyentuh kode.
-
----
-
-## Keadaan nyata per 30 Juli 2026 — sudah naik
-
-| | URL | Bukti |
-|---|---|---|
-| `nummi-kid` | https://nummi-kid.vercel.app | login anak `NUMMI1` + PIN → Home menampilkan saldo |
-| `nummi-parent` | https://nummi-parent.vercel.app | OTP → dashboard `Rp484.711`, inbox & layar PIN terbuka |
-| `nummi-console` | — | tetap lokal (ADR-0021 belum terpenuhi) |
-
-Scope Vercel: tim `ohmyghozs-projects`. `rootDirectory` diset per project (`apps/kid`, `apps/parent`),
-env terpasang **sebelum** build pertama.
-
-⚠️ **Deploy masih MANUAL, bukan otomatis dari git.** Koneksi GitHub↔Vercel gagal dibuat lewat API —
-kredensial GitHub di sisi Vercel menjawab `Bad credentials`, artinya GitHub App Vercel belum pernah
-terpasang untuk akun ini. Selama itu belum dibereskan di browser (Vercel → project → Settings → Git),
-**push ke `main` tidak men-deploy apa pun.** Deploy dilakukan dengan:
+Region **Singapore** (latensi Indonesia). Detail project & MCP: [`../supabase/README.md`](../supabase/README.md).
 
 ```bash
-vercel deploy --prod --yes     # dari root repo, memakai .vercel/project.json
+supabase link --project-ref <ref>
+supabase db push          # menjalankan 0001–0022 berurutan
+supabase functions deploy child-login
 ```
 
-`.vercel/project.json` menentukan project mana yang dituju — ia gitignored, dan **saat ini menunjuk
-`nummi-parent`**. Tukar `projectId`-nya untuk men-deploy kid.
+Sebelum menyentuh project sungguhan, jalankan dulu yang gratis:
 
-Konsekuensi yang perlu diketahui: tanpa koneksi git tidak ada preview deployment per-PR, dan tidak
-ada jejak commit di dashboard Vercel. Untuk uji 30 keluarga itu bisa diterima; untuk jangka panjang
-tidak.
+```bash
+./tools/verify-migrations.sh
+```
 
-⚠️ **Deployment Protection MATI** — memang harus, supaya keluarga bisa masuk. Artinya kedua URL bisa
-dijangkau siapa pun yang tahu alamatnya. Yang menjaga datanya adalah auth + RLS, bukan kerahasiaan
-URL; `X-Robots-Tag: noindex` mencegah terindeks, bukan diakses.
+Ia membangun Postgres lokal bersih + stub skema `auth`, menjalankan 0001–0022, lalu **menguji
+perilakunya** (sign up melahirkan 3 baris · `family_code` sesuai alfabet · aturan PIN menolak ·
+RLS `parent_profiles` memisahkan dua ortu). Migrasi yang salah paling murah ditemukan di sini.
 
----
+### Email — jalur kritis, tapi lebih sempit dari dulu
 
-## Langkah
+ADR-0022 menjadikan email jalur setiap login. **ADR-0023 menyempitkannya jadi hanya alur reset
+password.** Kalau email mati sekarang, yang berhenti adalah pendaftaran & reset — bukan seluruh
+pintu masuk.
 
-### 1. Impor repo dua kali
-
-Di Vercel: **Add New → Project → import repo yang sama**, dua kali. Untuk masing-masing, setel
-**Root Directory** ke `apps/kid` / `apps/parent`.
-
-⚠️ **"Include source files outside of the Root Directory" harus MENYALA.** Ini satu-satunya setelan
-yang mengubah build ini dari "berhasil" jadi `Module not found: @copy`. Sebabnya: `copy/` bukan
-package npm — ia dijangkau lewat alias tsconfig `"@copy": ["../../copy/index.ts"]`, dan
-`copy/index.ts` sendiri masih menjangkau `../packages/core/src/types.js`. Jadi build butuh **dua
-direktori di atas** Root Directory ada di disk. Vercel biasanya menyalakannya sendiri saat mendeteksi
-monorepo, tapi ia sebuah toggle, dan tidak ada apa pun di repo ini yang bisa memaksanya.
-
-Framework Preset terdeteksi otomatis (Next.js). Build Command dan Install Command biarkan default —
-`vercel.json` di tiap app hanya menyetel header, tidak menyentuh build.
-
-### 2. Environment variables
-
-Setel di **kedua** project:
-
-| Nama | Nilai | Catatan |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL project Supabase | |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_…` | ikut ke browser — wajar, RLS yang menjaga |
-| `SUPABASE_SECRET_KEY` | `sb_secret_…` | **server saja.** Sejak migrasi 0009 ia satu-satunya jalan menulis ledger |
-
-**JANGAN** setel `CHILD_JWT_SECRET` di Vercel. Ia dipakai Edge Function `child-login` yang berjalan
-di **Supabase**, bukan di Vercel — memasangnya di sini cuma menambah satu tempat rahasia itu berada.
-
-⚠️ **`NEXT_PUBLIC_*` harus ada SEBELUM build pertama, bukan sesudah.** `apps/parent/middleware.ts`
-membacanya, middleware berjalan di Edge runtime, dan Next **menanamkan** nilai `NEXT_PUBLIC_*` saat
-build. Kalau keduanya belum ada saat build, middleware menerima `undefined`, dan penukaran refresh
-token **diam-diam tidak pernah terjadi** — ortu terlempar ke layar masuk tiap ~1 jam tanpa satu pun
-galat muncul di mana pun. Ini kegagalan senyap; kalau env ditambahkan belakangan, **redeploy**.
-
-### 3. Email — sekarang jalur kritis (ADR-0022)
-
-Ortu masuk dengan **kode sekali pakai lewat email, tanpa password**. Konsekuensinya: kalau email
-tidak terkirim, **tidak ada satu pun ortu yang bisa masuk.** Tiga hal wajib dibereskan di dashboard
-Supabase sebelum keluarga pertama diundang:
+Tetap wajib sebelum keluarga pertama diundang:
 
 | Setelan | Kenapa |
 |---|---|
-| **SMTP sendiri** (Resend/Postmark/sejenis) | Pengirim bawaan Supabase dibatasi ketat & ditujukan untuk pengembangan. 30 keluarga yang mendaftar berbarengan akan menabraknya |
-| **Template email memuat `{{ .Token }}`** | Default Supabase mengirim **magic link**. Kalau template tidak diubah, ortu menerima tautan yang tidak bisa diketik ke layar kode |
-| **Umur OTP dipendekkan** (~10 menit) | Default 1 jam terlalu panjang untuk kode sekali pakai |
+| **SMTP sendiri** (Resend/Postmark/sejenis) | Pengirim bawaan Supabase dibatasi ketat & ditujukan untuk pengembangan |
+| **Redirect URL** memuat domain produksi | Tautan reset yang tidak terdaftar akan ditolak Supabase |
+| **Email confirmation TIDAK memblokir** | ADR-0023: ortu langsung masuk setelah daftar; verifikasi jalan di belakang |
 
-⚠️ **Panjang kode adalah setelan dashboard, bukan konstanta kode.** Saat diuji ia keluar **8 digit**.
-Copy sengaja tidak menyebut angka — jangan tambahkan.
+⚠️ **Tautan reset boleh membuka browser mana pun, dan itu disengaja.** ADR-0022 menolak magic link
+karena membuka browser bawaan aplikasi email, sehingga cookie mendarat di luar PWA. Di sini yang
+dituju adalah **menetapkan password baru**, bukan mendarat di sesi berumur panjang — setelah
+password diganti, ortu kembali ke PWA-nya dan masuk di sana.
 
-⚠️ **Pembatas percobaan OTP milik Supabase, bukan milik kita.** Berbeda dengan gerbang console yang
-rate limiter-nya kita bangun dan buktikan sendiri. Ia **wajib dibuktikan menyala** saat uji pertama —
-minta kode berulang-ulang sampai dijawab `429`.
-
-**Jalan darurat kalau kamu sendiri terkunci:** Supabase dashboard bisa membuat magic link manual
-untuk sebuah akun. Ketahui ini sebelum butuh.
-
-**Membuat 30 akun ortu:** tidak ada halaman daftar, dan itu disengaja — permintaan kode memakai
-`create_user: false`, jadi hanya email yang sudah dibuat lebih dulu yang bisa masuk. Buat akunnya
-lewat Admin API (`POST /auth/v1/admin/users`), lalu tautkan ke `parents`. Uji tertutup ditegakkan
-oleh jawaban server, bukan dengan menyembunyikan tautan daftar.
-
-### 4. Deployment Protection
-
-Nyalakan untuk kedua project selama pengembangan. **Matikan (atau pakai password) untuk uji 30
-keluarga** — kalau tidak, ortu dan anak tidak bisa masuk sama sekali.
-
-`vercel.json` tiap app sudah memasang, tanpa bergantung dashboard:
-
-- `X-Robots-Tag: noindex, nofollow` — produk anak belum boleh terindeks
-- `Content-Security-Policy: frame-ancestors 'none'` — app ortu berisi tombol **Approve** yang
-  memindahkan uang. Tanpa ini, halamannya bisa di-iframe dan tombol itu jadi sasaran clickjacking
-- `X-Content-Type-Options: nosniff` · `Referrer-Policy: no-referrer`
-
-### 5. Setelah deploy — yang harus benar-benar dicoba
-
-Bukan dibaca, dicoba. Repo ini sudah tiga kali kena fitur yang "ada" tapi tidak pernah menyala
-(RLS rekursif, view yang melewati RLS, rate limit yang tak pernah menghitung).
-
-1. **Anak masuk** dengan kode keluarga + PIN → Home menampilkan saldo
-2. **Ortu minta kode → email BENAR-BENAR sampai → masuk.** Ini yang membuktikan SMTP hidup. Kalau
-   gagal, tidak ada satu pun ortu yang bisa masuk (ADR-0022)
-3. **Email asing minta kode** → tidak ada akun baru terbuat, dan jawabannya identik dengan email
-   terdaftar. Itu gerbang uji tertutupnya
-4. **Minta kode berulang-ulang** sampai dijawab `429` → membuktikan pembatas Supabase menyala.
-   Ia milik vendor, jadi ia harus dilihat, bukan diasumsikan
-5. **Ortu masuk**, lalu **tunggu lewat 1 jam** (atau tanam access token kedaluwarsa) → dashboard
-   tetap terbuka. Ini yang membuktikan `NEXT_PUBLIC_*` benar-benar ada saat build
-6. **Ganti PIN anak** dari Settings → PIN lama berhenti berlaku, PIN baru bisa dipakai masuk.
-   Tanpa jalur ini, anak yang lupa PIN terkunci permanen
-7. **Pasang ke Home Screen** di iPhone → ikon muncul, app terbuka tanpa address bar, dan **nav bawah
-   tidak tertutup home indicator**. Yang terakhir itu yang diperbaiki `viewportFit: 'cover'`, dan ia
-   hanya kelihatan salah dalam mode standalone — tidak pernah di tab Safari
-8. **Satu siklus uang penuh**: anak minta cash out → ortu approve → saldo turun tepat sejumlah itu
+**Jalan darurat kalau kamu terkunci:** dashboard Supabase bisa membuat magic link manual untuk
+sebuah akun. Ketahui ini sebelum butuh.
 
 ---
 
-## Console — project ketiga, dan satu-satunya yang bersyarat
+## 2. Vercel
 
-[ADR-0021](decisions/0021-console-boleh-dideploy-dengan-syarat.md) mengamandemen ADR-0015: console
-boleh punya URL, karena laptop dev berbeda dari laptop & HP harian, dan pemeriksaan invarian justru
-paling dibutuhkan saat sedang tidak di depan mesin dev.
+**Add New → Project → import repo**, sekali. **Root Directory = `apps/web`.**
 
-Tapi ia membaca **service role, lintas keluarga, RLS dilewati** — satu halamannya berisi saldo setiap
-anak di setiap keluarga. Jadi ia hanya boleh naik dengan **tiga lapis sekaligus.** Kurang satu →
-kembali ke `npm run console:dev` di mesin sendiri.
+⚠️ **"Include source files outside of the Root Directory" harus MENYALA.** Satu-satunya setelan
+yang mengubah build ini dari "berhasil" jadi `Module not found`. Sebabnya: `@core`, `@copy`, dan
+`@regions` **bukan package npm** — ketiganya dijangkau lewat alias tsconfig ke berkas **dua
+tingkat di atas** root directory. `next.config.mjs` sudah menyetel `outputFileTracingRoot` ke root
+repo untuk sisi Next-nya, tapi toggle Vercel menentukan berkas mana yang sampai ke disk sejak
+awal — dan tidak ada apa pun di repo yang bisa memaksanya.
 
-### 1. Vercel Deployment Protection — WAJIB, dan cek dulu plan-mu
+Framework Preset terdeteksi otomatis. Build & Install Command biarkan default.
 
-Lapis platform: Vercel mencegat sebelum permintaan menyentuh kode app. **Verifikasi dulu bahwa
-plan Vercel-mu menyediakannya untuk domain produksi** — di sebagian plan, proteksi otomatis hanya
-berlaku untuk deployment preview, bukan produksi. Kalau ternyata tidak tersedia, **jangan
-deploy console.** Itu syarat, bukan saran.
+### Environment variables
 
-### 2. Env — satu lagi dari app produk
+Isi sesuai [`.env.example`](../.env.example):
 
 | Nama | Catatan |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | sama dengan app lain |
-| `SUPABASE_SECRET_KEY` | sama dengan app lain |
-| `CONSOLE_PASSWORD` | **hanya console.** Rahasia panjang & acak — ini satu-satunya kredensial |
+| `NEXT_PUBLIC_SUPABASE_URL` | ikut ke browser |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ikut ke browser — wajar, RLS yang menjaga |
+| `SUPABASE_SECRET_KEY` | **server saja.** Sejak migrasi 0009 ia satu-satunya jalan menulis ledger |
+| `CONSOLE_ADMIN_EMAILS` | Tahap 4 |
 
-`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` **tidak** dipakai console.
+⚠️ **`NEXT_PUBLIC_*` harus ada SEBELUM build pertama, bukan sesudah.** Next **menanamkan**
+nilainya saat build. Kalau belum ada, kode menerima `undefined` dan penukaran refresh token
+**diam-diam tidak pernah terjadi** — ortu terlempar ke layar masuk tiap ~1 jam tanpa satu pun galat
+muncul di mana pun. Ini kegagalan senyap. Kalau env ditambahkan belakangan, **redeploy**.
 
-Kunci HMAC sesi diturunkan dari `CONSOLE_PASSWORD`, jadi **menggantinya langsung membatalkan semua
-sesi.** Itu perilaku yang diinginkan, bukan efek samping.
+⚠️ **Jangan pernah menamai kunci rahasia berawalan `NEXT_PUBLIC_`.** Salah nama satu kali
+menerbitkannya ke setiap pengunjung.
 
-### 3. Rate limiting sudah ada, tapi butuh migrasinya
+**JANGAN** setel `CHILD_JWT_SECRET` di Vercel — ia milik Edge Function yang berjalan di Supabase.
 
-Migrasi **0017** (`console_login_attempts`) harus sudah jalan di project Supabase — dua lapis,
-5 kegagalan / 15 menit per IP dan 30 / 15 menit global. Tanpa tabel itu, route login **menolak
-semua percobaan** (rate limiter yang tidak bisa dijawab database membuat gerbang buta, dan menolak
-lebih aman daripada melanjutkan tanpa pembatas).
+### Deployment Protection
 
-### Yang harus dicoba setelah console naik
+Nyalakan selama pengembangan. **Matikan untuk uji keluarga** — kalau tidak, ortu dan anak tidak
+bisa masuk sama sekali. Yang menjaga datanya adalah auth + RLS, bukan kerahasiaan URL.
 
-1. Buka URL-nya **tanpa login** → dialihkan ke `/login`, nol nominal di respons
-2. Password salah **6×** → percobaan ke-6 dijawab terkunci
-3. Lalu masukkan password **benar** → **tetap ditolak** selama terkunci. Kalau ia lolos, urutan
-   periksa terbalik dan gerbangnya jadi oracle
-4. Hapus `CONSOLE_PASSWORD` di Vercel lalu redeploy → **semuanya** `503`. Kalau malah terbuka,
-   gerbangnya gagal-terbuka dan harus dihentikan sebelum dipakai
+⚠️ Begitu ia mati, `/console` ikut bisa dijangkau siapa pun yang tahu alamatnya, karena kini satu
+origin. **Tahap 4 tidak boleh dianggap selesai tanpa allowlist admin yang ditegakkan server.**
 
-> Poin 3 dan 4 yang paling mudah dilewat, dan justru keduanya yang membedakan gerbang sungguhan
-> dari gerbang yang cuma terpasang.
+### Header keamanan
+
+Sudah di `apps/web/next.config.mjs` + `middleware.ts`, bukan di dashboard — setelan dashboard
+tidak ikut dalam git, tidak ikut saat project dibuat ulang, dan tidak berlaku di `pnpm dev`.
+
+- `X-Robots-Tag: noindex, nofollow` — mencegah terindeks, **bukan** mencegah diakses
+- `Content-Security-Policy: frame-ancestors 'none'` — `/parent` memuat tombol **Approve** yang
+  memindahkan uang; tanpa ini ia sasaran clickjacking
+- `X-Content-Type-Options: nosniff` · `Referrer-Policy: no-referrer`
 
 ---
 
-## Yang sudah ditemukan, dan sudah ditutup
+## 3. Runbook verifikasi Tahap 0
 
-Dicatat karena semuanya adalah kelas kesalahan yang akan kembali di deploy berikutnya.
+Definisi Selesai T0 punya dua belas butir. **Enam sudah terbukti di repo** dan bisa kamu ulang
+sendiri; sisanya butuh kredensial dan menunggu kamu.
 
-| Temuan | Keadaan sebelumnya | Ditutup di |
+### Sudah terbukti (jalankan ulang kapan saja)
+
+```bash
+pnpm install
+pnpm test                     # 223 passed (223), 16 berkas — termasuk invariant I1
+pnpm typecheck                # packages/core + apps/web + data/regions
+pnpm mockups:unpack           # 3 bundle dibuka, 1 HTML biasa disalin
+pnpm regions:build            # 38 provinsi, 514 kab/kota — gagal keras kalau meleset
+pnpm build                    # Next build hijau
+./tools/verify-migrations.sh  # 0001–0022 di Postgres lokal + uji perilaku
+```
+
+### Butuh kamu — belum terverifikasi
+
+Bukan dibaca, **dicoba**. Repo lama sudah tiga kali kena fitur yang "ada" tapi tidak pernah
+menyala (RLS rekursif, view yang melewati RLS, rate limit yang tak pernah menghitung).
+
+| # | Langkah | Bukti yang dicari |
 |---|---|---|
-| **Console memprerender saldo semua keluarga jadi HTML statis** | `apps/console/app/page.tsx` tidak memakai `cookies()`, jadi Next menganggapnya statis dan memanggil service role **saat build**. `.next/server/app/index.html` berisi 58 KB saldo nyata, siap di-cache CDN | `export const dynamic = 'force-dynamic'` |
-| **Console tanpa gerbang apa pun** | tidak ada login, tidak ada middleware | `apps/console/middleware.ts`, gagal-tertutup |
-| **`vercel.json` root menunjuk `legacy/`** | mengimpor repo root akan mem-publikasikan lima mockup beku, bukan app | berkasnya dihapus |
-| **CI tidak pernah mem-build satu app pun** | hanya `packages/core`. Build Next yang rusak lolos sampai Vercel | job `apps` di `.github/workflows/ci.yml` |
-| **Akar workspace ditebak dari lockfile terdekat** | `package-lock.json` nyasar di direktori home membuat Next memilih home sebagai akar | `outputFileTracingRoot` di ketiga `next.config.mjs` |
-| **`env(safe-area-inset-bottom)` selalu 0** | CSS sudah memakainya sejak awal, tapi tanpa `viewportFit: 'cover'` ia tidak pernah bernilai apa pun di iOS | `viewport` di kedua layout |
-| **Font brand tidak pernah dimuat** | `--ui: 'Plus Jakarta Sans'` disebut CSS, tidak ada yang memuatnya — semua permukaan diam-diam `system-ui` | `next/font/google`, di-self-host saat build |
-| **Middleware ortu akan menggerbang aset PWA** | matcher hanya mengecualikan `_next/*`; tiap fetch ikon berpotensi memicu penukaran refresh token | matcher diperluas |
+| 1 | `supabase db push` ke project baru | 0001–0022 jalan bersih, nol galat |
+| 2 | `supabase functions deploy child-login` | fungsi ACTIVE |
+| 3 | `NUMMI_SEED_PROJECT_REF=<ref> pnpm seed:dev` | mencetak email ortu + PIN; `families`/`parents`/`parent_profiles` masing-masing dapat **satu** baris |
+| 4 | Periksa `family_code` di database | 6 karakter, **tanpa** `0 O 1 I L 5 S` (ADR-0023). Kini pengenal internal — bukan lagi kredensial login (ADR-0024) |
+| 5 | Sign up ortu lewat app | tiga baris lahir otomatis — trigger 0020 yang membuatnya, bukan kode app |
+| 6 | Login anak: **email ortu + PIN** (ADR-0024) | Edge Function menjawab JWT ber-claim. Payload `{ parentEmail, pin }` — bentuk ini **belum pernah** jalan di Supabase mana pun |
+| 6b | Login anak dengan email **ortu kedua** di keluarga yang sama | juga berhasil — ADR-0024 menetapkan ortu mana pun berlaku |
+| 7 | Login ortu: email + password | masuk tanpa verifikasi email lebih dulu (ADR-0023) |
+| 8 | Lupa password → email sampai → set password baru → masuk | **ini yang membuktikan SMTP hidup** |
+| 9 | Coba buat anak dengan PIN 4 digit | **ditolak** (0021). Kalau lolos, migrasi 0021 belum jalan |
+| 10 | Coba buat anak kedua dengan PIN sama | **ditolak**. Kalau lolos, kedua anak akan terkunci permanen dari uangnya sendiri |
+| 11 | Deploy Vercel → buka 4 route | 200, dan `curl -I` menunjukkan `X-Robots-Tag: noindex` |
+
+Langkah 6 juga bukan formalitas: payload `{ parentEmail, pin }` baru ditulis 31 Juli 2026 dan
+belum pernah menyentuh Supabase mana pun — yang sudah terbukti hanya RPC yang dipanggilnya.
+
+Langkah 9 dan 10 bukan formalitas: keduanya **terbukti lolos** di database tanpa migrasi 0021
+(lihat `supabase/README.md` §Audit). Kalau di project barumu keduanya ikut lolos, migrasinya
+belum masuk.
+
+⚠️ **Definisi Selesai T0 belum boleh dicentang** sebelum 1–11 (termasuk 6b) lolos. Yang sudah terbukti di repo
+tidak menggantikan ini — Postgres lokal bukan Supabase, dan `pnpm build` bukan deploy.
 
 ---
 
-## Yang TIDAK ada, dan itu disengaja
+## Yang belum diputuskan dan menyentuh deploy
 
-**Tidak ada service worker. Tidak ada mode offline.** Lihat
-[ADR-0019](decisions/0019-d4-pwa-untuk-mvp.md) §"Kenapa installable tapi tidak offline". Ringkasnya:
-menyimpan saldo di cache berarti menampilkan angka uang yang basi, dan repo ini punya **nol
-JavaScript klien** hari ini — service worker akan jadi yang pertama, beserta invalidasi cache seumur
-hidup produk. App-nya bisa dipasang; kalau tidak ada sinyal ia jujur gagal alih-alih berbohong soal uang.
-
-**Tidak ada push notification.** Konsekuensi yang sudah dihargai ADR-0013: di iOS push menuntut
-service worker. Jangan bangun alur MVP yang bergantung padanya.
-
-**Tidak ada pembelian.** Apple IAP butuh app native, dan MVP tidak menjual apa pun
-([ADR-0018](decisions/0018-harga-sekali-bayar.md) tetap berlaku untuk harganya). Checkout palsu di
-prototipe uji akan mengajari kesimpulan yang salah tentang minat membeli.
+- **MR-6** (`mockup-review.md`) — pengenal login anak: kode keluarga (ADR-0012) atau email ortu
+  (mockup). Menentukan bentuk `child-login`, jadi **putuskan sebelum Tahap 1**.
+- **Koneksi git ↔ Vercel.** Di repo lama ia tidak pernah terpasang, jadi deploy manual dan tidak
+  ada preview per-PR. Layak dibereskan sekali di browser (Vercel → project → Settings → Git).

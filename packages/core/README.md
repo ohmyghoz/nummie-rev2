@@ -16,6 +16,6 @@ Mesin Nummi. **TypeScript murni — nol dependency framework.**
 | `seed.ts` | **angka kanonik**. Kalau ada permukaan yang berbeda, permukaan itu yang salah |
 
 ```bash
-npm install
-npm test
+pnpm install     # dari root repo — ini paket dalam pnpm workspace
+pnpm test        # 223 test / 16 berkas
 ```

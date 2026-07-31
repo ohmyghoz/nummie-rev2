@@ -15,7 +15,9 @@
 **Tujuan:** repo baru berdiri dengan engine teruji dari repo lama; tahap berikutnya murni pekerjaan layar.
 
 **0a. Transplantasi dari `Nummie-test` (salin, bukan submodule):**
-1. `packages/core/` utuh — jalankan `npm test`, **172 test wajib hijau sebelum lanjut**.
+1. `packages/core/` utuh — jalankan `pnpm test`, **223 test wajib hijau sebelum lanjut**.
+   *(Angka "172" di rencana asli sudah usang; hitungan nyata 31 Juli 2026 = 223 test / 16 berkas.
+   Angka dokumen yang dikoreksi ke kenyataan, bukan sebaliknya.)*
 2. `supabase/migrations/0001–0018` + `supabase/functions/child-login` + `supabase/seed.sql`.
 3. `docs/decisions/` (ADR) — hapus/arsipkan ADR-0022, tulis **ADR baru: auth ortu
    email+password+reset, sign up publik** (konteks: uji tertutup selesai digantikan pendaftaran terbuka).
@@ -36,7 +38,7 @@
 10. `pnpm seed:dev` — 1 keluarga uji + 1 anak Middle (pakai seed kanonik core), dev only.
 11. Satu project Vercel + env Supabase; deploy placeholder 4 route.
 
-**Definisi Selesai T0:** 172 test core hijau di repo baru · migrasi jalan di project Supabase baru ·
+**Definisi Selesai T0:** 223 test core hijau di repo baru · migrasi jalan di project Supabase baru ·
 login anak via Edge Function berhasil dgn keluarga `seed:dev` · sign up ortu email+password membuat
 baris `parents`+`parent_profiles` · reset password terkirim & berfungsi · 4 route placeholder live di Vercel.
 
@@ -48,7 +50,10 @@ baris `parents`+`parent_profiles` · reset password terkirim & berfungsi · 4 ro
 **termasuk struktur navigasi mockup apa adanya** (bukan "nav kanonik" repo lama).
 
 **Cakupan** (inventaris final diambil dari mockup saat porting):
-1. Login anak (family code + PIN, Edge Function lama).
+1. Login anak (**email ortu + PIN** — ADR-0024, keputusan MR-6; Edge Function lama, payload baru).
+   ⚠️ Layar ini **tidak ada di mockup `/kid`** — satu-satunya yang pernah digambar ada di mockup
+   ortu. Jadi ia **dirancang**, bukan diport; gayanya mengikuti mockup, copy-nya sudah ada di
+   `copy/en.ts` §login.
 2. Home — topbar, saldo, pil ⭐/💎, ringkasan wallet, aktivitas.
 3. **Sort** — DEVIASI D-B: rasio & mode dari `money_rules`; Flexible = sisa ke Unsorted,
    Strict = wajib habis 100% + penjelasan kenapa terkunci.

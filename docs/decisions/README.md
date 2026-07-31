@@ -32,11 +32,31 @@ kelihatannya lebih masuk akal.
 | [0019](0019-d4-pwa-untuk-mvp.md) | PWA untuk MVP — bisa dipasang, sengaja tidak offline (menjawab D4) |
 | [0020](0020-d5-middle-saja-untuk-mvp.md) | Middle saja untuk MVP, kode Little & Teen tetap hidup (menutup D5) |
 | [0021](0021-console-boleh-dideploy-dengan-syarat.md) | Console boleh di-deploy — hanya dengan tiga lapis sekaligus (mengamandemen 0015) |
-| [0022](0022-auth-ortu-otp-tanpa-password.md) | Auth ortu: kode email sekali pakai, tanpa password · ganti PIN anak |
+| [0023](0023-auth-ortu-email-password.md) | Auth ortu: email + password + reset, pendaftaran publik terbuka (membatalkan 0022) |
+
+## Dibatalkan
+
+Tetap di repo, sengaja. Yang dibatalkan menjelaskan kenapa jalan yang kelihatan wajar itu pernah
+ditutup — dan syarat apa yang membukanya kembali.
+
+| # | Keputusan | Dibatalkan oleh |
+|---|---|---|
+| [0022](0022-auth-ortu-otp-tanpa-password.md) | Auth ortu: kode email sekali pakai, tanpa password | [0023](0023-auth-ortu-email-password.md) — pendaftaran tertutup yang menopangnya sudah lewat |
+
+Yang masih hidup dari 0022 meski ADR-nya batal: **ganti PIN anak** (`set_child_pin()`, migrasi
+0018, ortu mengganti dan tidak pernah melihat) dan analisis konteks-browser PWA, yang dipakai
+ulang 0023 untuk tautan reset password.
 
 ## Terbuka — jangan dijawab lewat kode
 
-**Per 30 Juli 2026, D1–D5 sudah terjawab.** Yang tersisa satu, dan sengaja tidak dipaksakan:
+**Per 30 Juli 2026, D1–D5 sudah terjawab.** Yang tersisa dua, dan sengaja tidak dipaksakan:
+
+**Pengenal login anak (MR-6)** — mockup ortu menyuruh anak masuk dengan **email ortu + PIN**,
+ADR-0012 mengunci **kode keluarga + PIN**. Dibuka 31 Juli 2026 saat markup mockup pertama kali
+bisa dibaca. Ia menentukan bentuk Edge Function `child-login` dan apakah `family_code` pernah
+dilihat pengguna, jadi **harus diputuskan sebelum layar login Tahap 1 dibangun** — bukan
+ditemukan saat membangunnya. Duduk perkaranya lengkap di
+[`../mockup-review.md`](../mockup-review.md) §MR-6.
 
 **Distribusi v1** — ADR-0019 menjawab D4 hanya untuk **cakupan MVP**. Pertanyaan native-vs-PWA untuk
 v1 dijawab oleh **hasil uji 30 keluarga**, memakai daftar data di

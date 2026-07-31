@@ -1,0 +1,67 @@
+/* Reset & dasar — diambil dari console.source.html:45-56, satu-satunya mockup
+   yang menuliskan aturan globalnya sebagai CSS biasa (tiga lainnya memakai
+   style inline per elemen).
+
+   Dilarang menambah CSS framework atau component library di sini (AGENTS.md §2):
+   CSS mockup sudah lengkap, tugasnya diport — bukan diganti. */
+
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--ui);
+  background: var(--canvas);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Angka bertabulasi: saldo yang berubah tidak boleh menggeser lebar kolom. */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(108, 76, 224, .4);
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

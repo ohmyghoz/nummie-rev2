@@ -37,7 +37,7 @@ bukan konfigurasi yang salah.
 | `migrations/0004_view_security_invoker.sql` | view pakai hak pemanggil + putus rekursi RLS | ✅ jalan |
 | `migrations/0005_rpc_surface.sql` | cabut EXECUTE helper definer dari `anon` | ✅ jalan |
 | `migrations/0006_verify_child_pin.sql` | verifikasi PIN di Postgres (pgcrypto), service role saja | ✅ jalan |
-| `migrations/0007_login_by_family_pin.sql` | `find_child_by_pin()` + `family_pin_taken()`, rate limit per keluarga | ✅ jalan |
+| `migrations/0007_login_by_family_pin.sql` | `find_child_by_pin()` *(dihapus di 0022)* + `family_pin_taken()`, rate limit per keluarga | ✅ jalan |
 | `migrations/0008_wallet_instrument.sql` | jenis instrumen Grow jadi kolom, bukan tebakan dari id | ✅ jalan |
 | `migrations/0009_no_direct_writes.sql` | cabut hak tulis anak — anak tidak lagi bisa mencetak uang | ✅ jalan |
 | `migrations/0010_no_overdraft.sql` | saldo negatif jadi mustahil, bukan sekadar dilaporkan | ✅ jalan |
@@ -46,8 +46,123 @@ bukan konfigurasi yang salah.
 | `migrations/0013_settings_tables.sql` | uang saku (per anak) · bunga bank (per keluarga) · harga harian (global) | ✅ jalan |
 | `migrations/0014_deposit_terms.sql` | tenor + rate + tanggal mulai deposito, dibekukan saat approve | ✅ jalan |
 | `migrations/0015_jobs_prizes_gems.sql` | `jobs` · `prizes` · **`gem_entries` append-only** + view saldo | ✅ jalan |
-| `functions/child-login/` | Edge Function: kode keluarga + PIN → JWT ber-claim | ✅ **v4, ACTIVE** |
+| `migrations/0016_plan_resolver.sql` | `my_family_is_pro()` — resolver plan untuk ortu & anak sekaligus | ✅ jalan |
+| `migrations/0017_console_login_attempts.sql` | rate limiting gerbang console (ADR-0021) | ✅ jalan |
+| `migrations/0018_set_child_pin.sql` | ganti PIN anak — ortu MENGGANTI, tidak pernah MELIHAT | ✅ jalan |
+| `migrations/0019_parent_profiles.sql` | **BARU (T0)** profil ortu: nama · telepon · negara/provinsi/kota | ⏳ belum dijalankan |
+| `migrations/0020_signup_bootstrap.sql` | **BARU (T0)** sign up → `families` + `parents` + `parent_profiles`, satu transaksi | ⏳ belum dijalankan |
+| `migrations/0021_pin_rules_on_create.sql` | **BARU (T0)** aturan PIN berlaku juga saat anak dibuat | ⏳ belum dijalankan |
+| `migrations/0022_child_login_by_parent_email.sql` | **BARU (T0)** login anak pakai email ortu (ADR-0024); `find_child_by_pin()` dihapus | ⏳ belum dijalankan |
+| `functions/child-login/` | Edge Function: **email ortu + PIN** → JWT ber-claim (ADR-0024) | ⏳ diubah, belum di-deploy |
 | `seed.sql` | data uji kanonik (cermin `packages/core/src/seed.ts`) — jalankan **setelah** migrasi | ✅ jalan (`NUMMI1`) |
+
+---
+
+## Audit: migrasi 0001–0018 vs auth ortu baru (31 Juli 2026)
+
+ADR-0023 mengganti auth ortu dari OTP tanpa password menjadi **email + password + reset, dengan
+pendaftaran publik**. Migrasi 0001–0018 semuanya ditulis untuk dunia OTP, tempat akun ortu dibuat
+tangan lewat Admin API. Rencana Tahap 0 no.8 meminta pemeriksaan apakah ada yang menyentuh asumsi
+itu. Hasilnya:
+
+### Tidak ada yang perlu diubah
+
+| Diperiksa | Kenapa tetap benar |
+|---|---|
+| `parents.id → auth.users(id)` (0001) | Identitasnya tetap sebuah baris `auth.users`. Yang berubah **cara barisnya lahir** (sign up, bukan Admin API), bukan apa yang menunjuknya |
+| RLS `auth.uid()` (0002, 0004) | `auth.uid()` diisi Supabase Auth dari JWT — sama saja apakah sesinya berasal dari OTP atau password |
+| `auth_family_id()` (0004) | Menurunkan keluarga dari `parents`, tidak pernah dari cara masuk |
+| Seluruh jalur anak (0003, 0006, 0007, 0012, 0018) | ADR-0012 tidak berubah. Anak tidak punya email, jadi tidak ada persinggungan |
+
+Itu bukan kebetulan: 0002 sengaja memisahkan **sumber identitas** dari **cara masuk**, dan
+pemisahan itulah yang membuat pergantian metode auth tidak menyentuh satu policy pun.
+
+### Yang kurang adalah penambahan, bukan perbaikan
+
+Yang ditemukan justru **ketiadaan**, dan yang paling besar hampir tidak terlihat karena bentuknya
+"tidak ada berkas":
+
+**Tidak pernah ada `create_family()`.** `create_child()` ada sejak 0012, tapi tidak ada satu pun
+jalur yang membuat `families` + `parents`. Tidak perlu ada — di dunia OTP keduanya diisi tangan,
+dan pemeriksaan ADR-0022 mengonfirmasi bentuknya: 1 akun auth, 1 baris `parents`. Pendaftaran
+publik tidak punya tangan. → **0020**.
+
+**Profil ortu tidak punya tempat tinggal.** Formulir sign up menanyakan nama, telepon, dan wilayah
+(ADR-0023). → **0019**.
+
+### Cacat yang ikut ditemukan — tidak berkaitan dengan auth, tapi nyata
+
+**`create_child()` tidak menegakkan satu pun aturan PIN.** ADR-0012 §A2 mengunci PIN 6 digit +
+unik dalam keluarga. `set_child_pin()` (0018) menegakkan keduanya; `create_child()` (0012, ditulis
+ulang di 0013) langsung `crypt()` tanpa memeriksa apa pun.
+
+Arahnya terbalik dari yang berguna: **pembuatan** adalah jalur onboarding yang dilewati setiap
+keluarga, **penggantian** adalah jalur langka. Selama pemanggilnya cuma tangan yang menyiapkan
+keluarga uji, ini tidak pernah terlihat. Setelah pendaftaran publik, pemanggilnya formulir yang
+diisi ortu mana pun. → **0021**.
+
+Bahwa `validateChild()` di `packages/core` memeriksanya bukan pembelaan — itu persis bentuk
+kegagalan yang diperingatkan 0009 dan diulang 0018: aturan yang hanya dijaga app akan bocor lewat
+jalur tulis berikutnya yang lupa memanggilnya.
+
+**Akibat PIN kembar, diverifikasi bukan diperkirakan.** `find_child_by_pin()` (0007) ditutup
+`where (select count(*) from m) = 1` — ia sengaja menolak kecocokan ganda, karena "kode keluarga +
+PIN" harus menunjuk tepat satu anak. Dijalankan terhadap database tanpa 0021, dua anak ber-PIN
+`1234` menghasilkan **0 baris**: bukan login yang tertukar, tapi **dua anak terkunci permanen dari
+uangnya sendiri**, dengan layar yang hanya bisa bilang "PIN salah" padahal PIN-nya benar. Ortu
+tidak bisa membandingkan — `pin_hash` di-bcrypt dan tidak pernah keluar dari database (0006).
+
+Itu persis pemulihan-mustahil yang dicatat ADR-0022, kali ini dibuat sendiri di jalur pembuatan.
+
+**Komentar usang di 0001.** Baris di dekat `failed_pin_attempts` masih berbunyi *"4 digit = 10.000
+kombinasi"*, tertinggal dari sebelum K15 menyatukan angka yang sempat ditulis 4, 4–6, dan 6 di tiga
+tempat. Skemanya sendiri tidak pernah membatasi panjang. Migrasi lama **tidak disunting** — ia
+riwayat yang sudah dijalankan orang lain — jadi koreksinya dipasang sebagai `comment on column`
+di 0021, tempat yang benar-benar dibaca saat memeriksa skema.
+
+### Diverifikasi terhadap Postgres sungguhan (31 Juli 2026)
+
+Sesi ini tidak punya kredensial Supabase, jadi verifikasinya dilakukan di **Postgres 16 lokal**
+dengan stub skema `auth` (tabel `auth.users`, fungsi `auth.uid()`/`auth.role()`, ketiga role
+Supabase). Seluruh **0001–0022 jalan bersih, berurutan, dari database kosong.**
+
+| Uji | Hasil |
+|---|---|
+| `insert into auth.users` → `families` + `parents` + `parent_profiles` | ✅ satu baris masing-masing, `is_primary = true` |
+| `family_code` = 6 karakter, alfabet tanpa-ambigu | ✅ cocok `^[23456789ABCDEFGHJKMNPQRTUVWXYZ]{6}$` |
+| Dua pendaftaran → dua keluarga, kode berbeda | ✅ |
+| `country` default `'ID'` saat metadata kosong | ✅ |
+| `create_child()` menolak PIN 4 digit | ✅ *(sebelum 0021: **diterima**)* |
+| `create_child()` menolak PIN kembar dalam keluarga | ✅ *(sebelum 0021: **diterima**)* |
+| PIN sama di keluarga **lain** tetap boleh | ✅ |
+| RLS: ortu A membaca `parent_profiles` | ✅ 1 baris — miliknya saja, bukan ortu kedua |
+| RLS: ortu A mengubah profil ortu B | ✅ 0 baris diubah, nilai B utuh |
+| RLS: ortu A menyisipkan baris `parent_profiles` | ✅ ditolak (tidak ada policy INSERT) |
+| RLS: ortu A mengubah profilnya sendiri | ✅ berhasil |
+| **0022** email ortu + PIN benar → tepat 1 anak | ✅ |
+| **0022** email dengan huruf besar & spasi tetap cocok | ✅ dinormalisasi kedua sisi |
+| **0022** email **ortu kedua** di keluarga sama juga berhasil | ✅ (ADR-0024: "ortu mana pun") |
+| **0022** email tak dikenal | ✅ nol baris, **bukan galat** |
+| **0022** PIN salah pada email benar | ✅ nol baris |
+| **0022** PIN keluarga lain tidak membuka keluarga ini | ✅ pencarian dipagari keluarga |
+| **0022** dua anak ber-PIN sama | ✅ nol baris — gagal tertutup, server tidak menebak |
+| **0022** `find_child_by_pin` sudah tidak ada | ✅ satu pintu |
+
+Dua baris "sebelum 0021" itu bukan penalaran — keduanya dijalankan terhadap database kedua yang
+sengaja dibangun tanpa 0021, dan keduanya **lolos**. Cacatnya nyata.
+
+Baris "PIN keluarga lain" juga bukan formalitas: kedua keluarga uji sengaja memakai PIN `135790`
+yang sama persis, jadi pagar keluarga yang bocor akan membuat **dua** anak cocok — dan penutup
+`count(*) = 1` mengubahnya jadi nol baris, yang langsung menggagalkan uji itu.
+
+### Yang masih TIDAK diperiksa
+
+Postgres lokal bukan Supabase. Yang belum terbukti: trigger `auth.users` dipanggil oleh **Supabase
+Auth yang sungguhan** (di sini `auth.users` diisi `insert` biasa), pengiriman email reset password,
+dan perilaku `service_role` di PostgREST. **Verifikasinya ada di `docs/DEPLOY.md` §Runbook T0**,
+dan Definisi Selesai T0 belum boleh dicentang sebelum itu lolos.
+
+---
 
 ## Keadaan sekarang (29 Juli 2026)
 
@@ -57,23 +172,30 @@ Angka yang sama dihasilkan `packages/core` (176 test hijau). Itulah gunanya puny
 
 Kode keluarga **`NUMMI1`**, PIN anak **`135790`** — data uji, ganti sebelum keluarga sungguhan.
 
-**Login anak hidup dan sudah diuji ujung ke ujung.** Payload-nya **hanya** `{ familyCode, pin }` —
-tidak ada `childId` (ADR-0012 §A1). Kode keluarga diterima huruf kecil, PIN salah dan kode keluarga
-salah sama-sama `401` dengan pesan seragam, token berumur 12 jam, dan token itu dipakai menembak
-`/rest/v1/wallet_balances` mengembalikan **11 baris, total 484.711** — angka yang sama dengan
-`packages/core`. Tiga sumber independen, satu angka.
+> ⚠️ **Payload berganti 31 Juli 2026.** Deskripsi "diuji ujung ke ujung" di bawah berasal dari
+> repo lama, tempat pengenalnya masih **kode keluarga**. Sejak [ADR-0024](../docs/decisions/0024-login-anak-email-ortu.md)
+> pengenalnya **email ortu**, dan bentuk barunya **belum pernah dijalankan terhadap Supabase**
+> — lihat runbook `docs/DEPLOY.md` §3 langkah 6.
+
+**Payload-nya `{ parentEmail, pin }`** — tidak ada `childId` (ADR-0012 §A1), dan tidak lagi ada
+`familyCode` (ADR-0024). Email dinormalisasi (`trim` + huruf kecil) di Edge Function **dan** di
+SQL-nya. Email salah dan PIN salah sama-sama `401` dengan pesan seragam; token berumur 12 jam.
 
 ```bash
 curl -X POST "$URL/functions/v1/child-login" \
   -H "apikey: $PUBLISHABLE_KEY" -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H 'content-type: application/json' \
-  -d '{"familyCode":"NUMMI1","pin":"135790"}'
+  -d '{"parentEmail":"dev-parent@nummi.local","pin":"135790"}'
 ```
 
-**PIN wajib unik dalam satu keluarga.** Kalau dua anak sama-sama cocok, `find_child_by_pin()`
-mengembalikan nol baris dan login GAGAL — server tidak menebak. Keunikan tidak bisa dijaga unique
-constraint (salt bcrypt berbeda tiap baris), jadi penegakannya di waktu tulis lewat
-`family_pin_taken()`.
+Di repo lama, token hasil login dipakai menembak `/rest/v1/wallet_balances` dan mengembalikan
+**11 baris, total 484.711** — angka yang sama dengan `packages/core`. Tiga sumber independen, satu
+angka. Pemeriksaan itu layak diulang di sini setelah `seed.sql` dijalankan.
+
+**PIN wajib unik dalam satu keluarga.** Kalau dua anak sama-sama cocok,
+`find_child_by_parent_email()` mengembalikan nol baris dan login GAGAL — server tidak menebak.
+Keunikan tidak bisa dijaga unique constraint (salt bcrypt berbeda tiap baris), jadi penegakannya
+di waktu tulis lewat `family_pin_taken()`, yang dipanggil `create_child()` sejak migrasi 0021.
 
 **App anak sudah tersambung** — membaca (Home/Wallets/Sort/Requests) dan **menulis** (Sort).
 Saldo di atas kini bergerak karena anak sungguhan menekan tombol, bukan karena seed.
