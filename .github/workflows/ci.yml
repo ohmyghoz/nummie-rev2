@@ -1,0 +1,122 @@
+# Nummi — gerbang yang harus hijau sebelum apa pun digabung.
+#
+# KENAPA BERKAS INI ADA: di repo lama, **CI tidak pernah mem-build satu app pun**
+# (`docs/nummi-status.md`). Akibatnya build yang rusak baru ketahuan saat deploy manual —
+# tempat paling mahal untuk menemukannya. Berkas ini menutup itu sejak commit pertama repo baru,
+# bukan setelah kejadian pertama.
+#
+# Yang dijalankan di sini adalah gerbang yang SAMA persis dengan yang dijalankan orang di
+# mesinnya (`docs/DEPLOY.md` §3). Kalau CI dan mesin lokal punya daftar berbeda, yang satu akan
+# membusuk tanpa ada yang tahu.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: test · typecheck · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Invarian I1 hidup di sini (`packages/core/test/invariant.test.ts`). Kalau langkah ini
+      # merah, tidak ada gunanya melanjutkan — aturan uangnya yang rusak.
+      - name: Test engine
+        run: pnpm test
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+  migrations:
+    name: migrasi di Postgres sungguhan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runner GitHub sudah membawa PostgreSQL, tapi tidak menyalakannya. `verify-migrations.sh`
+      # membuat cluster-nya sendiri di direktori sementara — jadi ia tidak menyentuh apa pun,
+      # dan perilakunya sama dengan saat dijalankan di laptop.
+      - name: Jalankan migrasi + uji perilaku
+        run: ./tools/verify-migrations.sh
+
+  sync:
+    name: berkas generated masih sinkron
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # `reference/mockup-source/` dan `data/regions/*.json` DIGENERATE lalu di-commit.
+      # Berkas semacam itu punya satu cara membusuk: seseorang menyunting sumbernya (atau
+      # hasilnya) dan lupa menjalankan ulang skripnya. Sejak saat itu repo memuat dua kebenaran.
+      #
+      # Langkah ini menjalankan ulang keduanya lalu menuntut `git diff` kosong.
+      - name: Regenerate
+        run: |
+          pnpm mockups:unpack
+          pnpm regions:build
+
+      - name: Tuntut tidak ada perubahan
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Berkas generated tidak sinkron dengan sumbernya."
+            echo "Jalankan 'pnpm mockups:unpack' dan/atau 'pnpm regions:build', lalu commit hasilnya."
+            git diff --stat
+            exit 1
+          fi
+
+  no-secrets:
+    name: kunci rahasia tidak bocor ke bundle klien
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pelajaran P0 repo lama: console pernah MENERBITKAN data semua keluarga sebagai HTML
+      # statis, karena Next memilih statis kalau tidak ada yang menghalangi. Akarnya kunci
+      # service-role yang terjangkau dari jalur render.
+      #
+      # Pemeriksaan ini murah dan menangkap bentuk paling umum: menamai kunci rahasia dengan
+      # awalan `NEXT_PUBLIC_`, yang membuat Next MENANAMKANNYA ke bundle browser.
+      - name: Tidak ada NEXT_PUBLIC_ pada kunci rahasia
+        run: |
+          if grep -rnE 'NEXT_PUBLIC_[A-Z_]*(SECRET|SERVICE_ROLE|PASSWORD|PRIVATE)' \
+               --include='*.ts' --include='*.tsx' --include='*.mjs' --include='*.json' \
+               --exclude-dir=node_modules . ; then
+            echo "::error::Kunci rahasia dinamai NEXT_PUBLIC_ — ia akan ikut ke bundle browser."
+            exit 1
+          fi
+          echo "OK — tidak ada kunci rahasia berawalan NEXT_PUBLIC_"
+
+      # `SUPABASE_SECRET_KEY` hanya boleh disentuh kode server & skrip, tidak pernah komponen.
+      - name: Kunci rahasia tidak disentuh kode app
+        run: |
+          if grep -rn 'SUPABASE_SECRET_KEY\|SUPABASE_SERVICE_ROLE_KEY' apps/web/app 2>/dev/null; then
+            echo "::error::Kunci rahasia disebut di dalam apps/web/app — pindahkan ke route handler server."
+            exit 1
+          fi
+          echo "OK — kunci rahasia tidak disebut di apps/web/app"
