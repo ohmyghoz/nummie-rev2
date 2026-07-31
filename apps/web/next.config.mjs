@@ -18,10 +18,34 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Header keamanan dipasang di sini, bukan di dashboard Vercel.
+ *
+ * Alasannya sudah pernah mahal: setelan dashboard tidak ikut dalam `git`, tidak ikut saat
+ * project dibuat ulang, dan tidak berlaku di `pnpm dev`. Yang di berkas ini selalu ikut.
+ *
+ * `frame-ancestors 'none'` adalah yang paling penting dan paling mudah dianggap seremonial:
+ * `/parent` memuat tombol **Approve** yang MEMINDAHKAN UANG. Tanpa header ini, halamannya bisa
+ * di-iframe orang lain dan tombol itu jadi sasaran clickjacking — korbannya menekan sesuatu yang
+ * lain, yang tertekan tombol Approve.
+ *
+ * `X-Robots-Tag` sengaja dipasang DUA KALI (di sini dan di `middleware.ts`). Yang di sini
+ * berlaku bahkan kalau middleware dilewati atau matcher-nya kelak dipersempit.
+ */
+const securityHeaders = [
+  { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+  { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'no-referrer' },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: path.join(here, '../..'),
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders }];
+  },
 };
 
 export default nextConfig;

@@ -35,7 +35,9 @@
  */
 
 const URL_ENV = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// `SUPABASE_SECRET_KEY` (`sb_secret_…`) adalah nama yang dipakai repo ini; `SUPABASE_SERVICE_ROLE_KEY`
+// diterima sebagai nama lama supaya `.env` yang sudah ada tidak perlu disunting lebih dulu.
+const KEY = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const EMAIL = process.env.NUMMI_SEED_EMAIL ?? 'dev-parent@nummi.local';
 const PASSWORD = process.env.NUMMI_SEED_PASSWORD ?? 'nummi-dev-password';
@@ -58,8 +60,8 @@ if (process.env.NODE_ENV === 'production') {
 
 if (!URL_ENV || !KEY) {
   die(
-    'butuh NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY.',
-    'Salin .env.example jadi .env.local lalu isi. Service role key TIDAK PERNAH masuk kode klien.',
+    'butuh NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SECRET_KEY.',
+    'Salin .env.example jadi .env.local lalu isi. Kunci rahasia TIDAK PERNAH masuk kode klien.',
   );
 }
 
