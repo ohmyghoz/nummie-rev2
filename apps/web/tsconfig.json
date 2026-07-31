@@ -21,6 +21,15 @@
       "@regions": ["../../data/regions/index.ts"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  // `data/regions` dan `copy/` berada di luar app ini dan bukan workspace package, jadi
+  // `pnpm -r typecheck` tidak akan pernah menyentuhnya sendiri. Dimasukkan di sini supaya
+  // keduanya tetap terjaga tipe sebelum ada layar yang mengimpornya.
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../../data/regions/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }
