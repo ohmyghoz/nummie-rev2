@@ -17,8 +17,10 @@ import { AuthGate } from './AuthGate';
 import { Onboarding } from './Onboarding';
 import { Dashboard } from './Dashboard';
 import { RequestsInbox } from './RequestsInbox';
+import { SettingsScreen } from './SettingsScreen';
+import { SendMoneyScreen, TakeMoneyScreen } from './SendTakeScreens';
 
-type View = 'dashboard' | 'requests';
+type View = 'dashboard' | 'requests' | 'settings' | 'send' | 'take';
 
 /** Root `/parent` — gerbang sesi Supabase Auth sungguhan, lalu family/children/requests. */
 export function ParentApp() {
@@ -28,8 +30,16 @@ export function ParentApp() {
   const [pending, setPending] = useState<ParentRequestRow[]>([]);
   const [promiseDebt, setPromiseDebt] = useState<ParentRequestRow[]>([]);
   const [view, setView] = useState<View>('dashboard');
+  const [targetChild, setTargetChild] = useState<{ id: string; name: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 2600);
+    return () => clearTimeout(id);
+  }, [toast]);
 
   useEffect(() => {
     void getParentSession().then(setSession);
@@ -99,13 +109,90 @@ export function ParentApp() {
     );
   }
 
+  if (view === 'settings' && targetChild) {
+    return (
+      <SettingsScreen
+        session={session}
+        childId={targetChild.id}
+        childName={targetChild.name}
+        onBack={() => setView('dashboard')}
+      />
+    );
+  }
+
+  if (view === 'send' && targetChild) {
+    return (
+      <SendMoneyScreen
+        session={session}
+        childId={targetChild.id}
+        childName={targetChild.name}
+        onBack={() => setView('dashboard')}
+        onDone={(msg) => {
+          setToast(msg);
+          setView('dashboard');
+          void refresh(session);
+        }}
+      />
+    );
+  }
+
+  if (view === 'take' && targetChild) {
+    return (
+      <TakeMoneyScreen
+        session={session}
+        childId={targetChild.id}
+        childName={targetChild.name}
+        onBack={() => setView('dashboard')}
+        onDone={(msg) => {
+          setToast(msg);
+          setView('dashboard');
+          void refresh(session);
+        }}
+      />
+    );
+  }
+
   return (
-    <Dashboard
-      family={family}
-      children={children}
-      pendingTotal={pending.length + promiseDebt.length}
-      onOpenRequests={() => setView('requests')}
-      onAddChild={() => setShowOnboarding(true)}
-    />
+    <>
+      <Dashboard
+        family={family}
+        children={children}
+        pendingTotal={pending.length + promiseDebt.length}
+        onOpenRequests={() => setView('requests')}
+        onAddChild={() => setShowOnboarding(true)}
+        onOpenSettings={(id, name) => {
+          setTargetChild({ id, name });
+          setView('settings');
+        }}
+        onOpenSend={(id, name) => {
+          setTargetChild({ id, name });
+          setView('send');
+        }}
+        onOpenTake={(id, name) => {
+          setTargetChild({ id, name });
+          setView('take');
+        }}
+      />
+      {toast ? (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--ink)',
+            color: '#fff',
+            padding: '11px 18px',
+            borderRadius: '14px',
+            fontSize: '12.5px',
+            fontWeight: 600,
+            maxWidth: '90%',
+            textAlign: 'center',
+          }}
+        >
+          {toast}
+        </div>
+      ) : null}
+    </>
   );
 }

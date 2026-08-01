@@ -19,12 +19,18 @@ export function Dashboard({
   pendingTotal,
   onOpenRequests,
   onAddChild,
+  onOpenSettings,
+  onOpenSend,
+  onOpenTake,
 }: {
   family: ParentFamily;
   children: ParentChildSummary[];
   pendingTotal: number;
   onOpenRequests: () => void;
   onAddChild: () => void;
+  onOpenSettings: (childId: string, childName: string) => void;
+  onOpenSend: (childId: string, childName: string) => void;
+  onOpenTake: (childId: string, childName: string) => void;
 }) {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--canvas)', padding: '16px' }}>
@@ -140,6 +146,11 @@ export function Dashboard({
                 {child.pendingCount} waiting on you
               </div>
             ) : null}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+              <CardAction label={en.parent.send} onClick={() => onOpenSend(child.id, child.name)} />
+              <CardAction label={en.parent.take} onClick={() => onOpenTake(child.id, child.name)} />
+              <CardAction label="Settings" onClick={() => onOpenSettings(child.id, child.name)} />
+            </div>
           </div>
         ))}
 
@@ -163,5 +174,25 @@ export function Dashboard({
         Family code {family.familyCode}
       </div>
     </div>
+  );
+}
+
+function CardAction({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1,
+        border: '1px solid var(--line)',
+        background: 'var(--surface-2)',
+        borderRadius: '10px',
+        padding: '9px',
+        fontSize: '11.5px',
+        fontWeight: 700,
+        color: 'var(--ink)',
+      }}
+    >
+      {label}
+    </button>
   );
 }
