@@ -8,13 +8,14 @@ selesai**, dan berkas ini bilang persis sejauh mana, termasuk yang genuinely mas
 
 > **Ringkas:** `/kid` (login·Home·Sort·Wallets·Move·Cash-out·Give·Requests·History·Me·**Grow
 > (Time Deposit)**) dan `/parent` (sign up·onboarding·dashboard·approval inbox·Money rules
-> editor·Allowance·Send/Take·**Bank rates**) hidup di atas Supabase sungguhan. Pencapaian
-> babak pertama sesi ini: Money rules editor, dibuktikan ujung ke ujung dengan keluarga yang
-> sebelumnya buntu total. Babak kedua: **Grow — Time Deposit** hidup penuh (setor → ortu
-> approve → bunga terkunci → panen dengan 3 pilihan), termasuk dua bug nyata yang ditemukan &
-> diperbaiki lewat pengujian langsung (lihat §3). Yang **masih genuinely kosong**: Grow
-> Gold/Forex (butuh `daily_prices` yang belum ada), Missions/Jobs/Prizes, dan separuh layar
-> Settings (Today's prices/Account/undang ortu kedua).
+> editor·Allowance·Send/Take·**Bank rates·Manage investments·Transactions**) hidup di atas
+> Supabase sungguhan. Pencapaian babak pertama sesi ini: Money rules editor, dibuktikan ujung ke
+> ujung dengan keluarga yang sebelumnya buntu total. Babak kedua: **Grow — Time Deposit** hidup
+> penuh (setor → ortu approve → bunga terkunci → panen dengan 3 pilihan) plus Bank rates,
+> Manage investments, dan Transactions di sisi ortu — empat bug nyata ditemukan & diperbaiki
+> lewat pengujian langsung, bukan cuma typecheck/test (lihat §3). Yang **masih genuinely
+> kosong**: Grow Gold/Forex (butuh `daily_prices` yang belum ada), Missions/Jobs/Prizes, dan
+> separuh layar Settings (Today's prices/Account/undang ortu kedua).
 
 ---
 
@@ -36,10 +37,11 @@ ada.
 (jadwal + kirim sekarang, sungguhan) · Send/Take money · **Bank rates** (edit rate 3/6/12 bulan,
 dipakai langsung oleh Grow di sisi anak) · **Manage investments** (baca-saja, per anak — daftar
 Time Deposit aktif dengan pokok/rate/sisa hari/status jatuh tempo; wallet yang masih menunggu
-approve sengaja disembunyikan, lihat §3).
+approve sengaja disembunyikan, lihat §3) · **Transactions** (baca-saja, per anak — riwayat
+`ledger_entries` dengan filter rentang, sama pola dengan History anak).
 ❌ Today's prices (edit manual, nunggu keputusan `daily_prices`) · Account (edit profil/lihat PIN
-masking) · undang ortu kedua · Jobs/Prizes builder · Transactions (riwayat gabungan semua anak) ·
-Insight.
+masking — cek dulu apakah benar ada di mockup, tidak ketemu saat sesi ini mencari) · undang ortu
+kedua · Jobs/Prizes builder · Insight.
 
 ## 2. Loop yang dibuktikan hidup ujung ke ujung
 
@@ -66,6 +68,11 @@ manual (lihat laporan sebelumnya untuk detail langkah).
    Save bertambah Rp150; wallet TD **diperpanjang** — `started_at` jadi hari ini lagi,
    `locked_rate_pct` dihitung ulang dari Bank rates *saat ini* (bukan yang lama) — persis
    perilaku yang dijanjikan komentar kode sebelum diperbaiki (lihat §3).
+
+**Loop 4 — Manage investments & Transactions**, keluarga & anak yang sama: kedua Time Deposit
+Dinda (dari Loop 3) muncul benar di "Manage investments" (pokok/rate/sisa hari), dan seluruh
+riwayat sesi ini (send_money, 3× sort, 2× grow_in, 2× harvest) muncul benar dengan tanda +/− di
+"Transactions" — dicocokkan lagi dengan hasil SQL langsung yang sama dipakai Loop 3.
 
 ## 3. Cacat & insiden ditemukan sesi ini
 
@@ -128,5 +135,5 @@ kosong daripada dipalsukan supaya terlihat lengkap.
 2. **Kalau lanjut nanti**: Grow Gold/Forex genuinely butuh keputusan produk dulu — dari mana
    `daily_prices` diisi (manual ortu via Settings, seperti mockup gambarkan, atau feed otomatis
    yang sengaja di-backlog)? — bukan cuma porting. Setelah itu, sisa pekerjaan terbuka:
-   Missions/Jobs/Prizes, Today's prices, Account, undang ortu kedua, Transactions gabungan,
-   Insight.
+   Missions/Jobs/Prizes (butuh keputusan konten/kurikulum, bukan cuma UI), Today's prices,
+   Account (perlu dicek dulu apakah memang ada di mockup), undang ortu kedua, Insight.
