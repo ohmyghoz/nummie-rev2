@@ -23,6 +23,7 @@ export function Dashboard({
   onOpenSend,
   onOpenTake,
   onOpenInvestments,
+  onOpenTransactions,
 }: {
   family: ParentFamily;
   children: ParentChildSummary[];
@@ -33,6 +34,7 @@ export function Dashboard({
   onOpenSend: (childId: string, childName: string) => void;
   onOpenTake: (childId: string, childName: string) => void;
   onOpenInvestments: (childId: string, childName: string) => void;
+  onOpenTransactions: (childId: string, childName: string) => void;
 }) {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--canvas)', padding: '16px' }}>
@@ -152,6 +154,7 @@ export function Dashboard({
               <CardAction label={en.parent.send} onClick={() => onOpenSend(child.id, child.name)} />
               <CardAction label={en.parent.take} onClick={() => onOpenTake(child.id, child.name)} />
               <CardAction label={en.settings.investments} onClick={() => onOpenInvestments(child.id, child.name)} />
+              <CardAction label={en.txn.title} onClick={() => onOpenTransactions(child.id, child.name)} />
               <CardAction label="Settings" onClick={() => onOpenSettings(child.id, child.name)} />
             </div>
           </div>
