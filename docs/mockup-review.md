@@ -25,7 +25,7 @@
 | **Terbuka & memblokir** | **0** |
 | Diputuskan Ghozy | 4 — MR-2 · MR-3 · MR-6 · MR-7 (31 Juli 2026) |
 | Tidak pernah butuh keputusan | 5 — MR-1 · MR-4 · MR-5 · MR-8 · MR-9 (sudah dijawab aturan/keputusan yang ada) |
-| **Menunggu, tapi tidak memblokir** | **1 — MR-10** (tujuan tombol tanpa aksi; dijawab saat layar Wallets diport) |
+| **Menunggu, tapi tidak memblokir** | **2 — MR-10** (tujuan tombol tanpa aksi; dijawab saat layar Wallets diport) · **MR-11** (Give di grup "happens right away" tapi butuh OK ortu; diport sesuai mockup, menunggu keputusan) |
 
 **Tahap 1 tidak lagi diblokir keputusan apa pun.** Yang tersisa dari daftar ini adalah pekerjaan
 porting, bukan pertanyaan.
@@ -177,6 +177,29 @@ makna berbeda di layar yang sama.
 
 Dicatat di sini alih-alih ditebak diam-diam — menebak tujuan tombol adalah cara paling halus untuk
 menyimpang dari mockup sambil merasa sedang mematuhinya.
+
+---
+
+## MR-11 · "Give" dikelompokkan "happens right away", tapi butuh OK ortu
+
+> ### Ditemukan 1 Agustus 2026, saat memport sheet FAB "＋ Money" (Tahap 1 lanjutan)
+
+`sheet()` (kid-mobile.source.jsx :783) membagi dua grup: **g1 "MANAGE MY MONEY · HAPPENS
+RIGHT AWAY"** dan **g2 "ASK A GROWN-UP · NEEDS THEIR OK"**. Baris `Give` ada di **g1** (:799),
+sebaris dengan Sort dan Move — bukan di g2 bersama Cash out & Grow.
+
+Tapi `give_away` **bukan** jalur instan (`packages/core/src/requests.ts` `INSTANT_KINDS` tidak
+memuatnya) — ia lahir `needs_ok`, persis seperti `cash_out`. ADR-0006 & ADR-0002 juga
+menegaskan ini: Give butuh persetujuan ortu + cerita wajib sebelum ditutup. Backend dan
+posisi visual mockup bertentangan langsung.
+
+**Diport sesuai posisi mockup** (Give tetap di grup pertama, tanpa chip "NEEDS OK") —
+`apps/web/app/kid/_components/MoneySheet.tsx`. Perilakunya (membuat request, bukan menulis
+ledger langsung) tetap benar mengikuti core, hanya *tampilannya* yang ikut mockup apa adanya.
+
+Belum diputuskan Ghozy: apakah ini kesalahan mockup yang layak diperbaiki (pindah Give ke g2 +
+chip NEEDS OK), atau dibiarkan — anak baru sadar butuh OK ortu setelah menekan Give, bukan
+sebelumnya.
 
 ---
 

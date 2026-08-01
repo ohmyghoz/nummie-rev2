@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { formatRp } from '@core/money';
+import { formatRp, parseRp, formatRpInput } from '@core/money';
 import type { Category, Wallet } from '@core/types';
 import { categoryTotal, type KidData } from '../../../lib/kid/data';
 import { ProgressRing } from './shell';
+import { supabaseForKid, type KidSession } from '../../../lib/kid/session';
 
 /**
  * Tab Wallets — docs/inventory/kid-wallets.md. Cabang Middle saja.
@@ -20,9 +21,20 @@ const CATEGORY_META: Record<Category, { emoji: string; name: string; meta: strin
   grow: { emoji: '🌱', name: 'Grow', meta: 'investments · needs OK' },
 };
 
-export function WalletsTab({ data, onPush }: { data: KidData; onPush: (screen: string) => void }) {
+export function WalletsTab({
+  data,
+  session,
+  onPush,
+  onChanged,
+}: {
+  data: KidData;
+  session: KidSession;
+  onPush: (screen: string) => void;
+  onChanged: () => void;
+}) {
   const [open, setOpen] = useState<Category | null>('spend');
   const [masked, setMasked] = useState(false);
+  const [creating, setCreating] = useState<'spend' | 'save' | null>(null);
   const { wallets, balances } = data;
   const total = wallets.reduce((s, w) => s + (balances[w.id] ?? 0), 0);
   const unsorted = categoryTotal(wallets, balances, 'unsorted');
@@ -200,13 +212,162 @@ export function WalletsTab({ data, onPush }: { data: KidData; onPush: (screen: s
                 {catWallets.map((w) => (
                   <PocketCard key={w.id} wallet={w} balance={balances[w.id] ?? 0} masked={masked} onPush={onPush} />
                 ))}
-                <DashedCard label={cat === 'give' ? '+ Giving history' : `+ New ${cat === 'spend' ? 'envelope' : cat === 'save' ? 'dream' : 'item'}`} />
+                {cat === 'give' ? (
+                  <DashedCard label="+ Giving history" onClick={() => onPush('history')} />
+                ) : cat === 'spend' || cat === 'save' ? (
+                  <DashedCard
+                    label={`+ New ${cat === 'spend' ? 'envelope' : 'dream'}`}
+                    onClick={() => setCreating(cat)}
+                  />
+                ) : (
+                  <DashedCard label="+ Grow money" onClick={() => onPush('grow')} />
+                )}
               </div>
             ) : null}
           </div>
         );
       })}
+
+      {creating ? (
+        <CreateWalletSheet
+          category={creating}
+          session={session}
+          onClose={() => setCreating(null)}
+          onCreated={() => {
+            setCreating(null);
+            onChanged();
+          }}
+        />
+      ) : null}
     </>
+  );
+}
+
+/**
+ * "+ New envelope"/"+ New dream" — TIDAK ADA di mockup (kartu dashed-nya tanpa `onClick`,
+ * kid-wallets.md §5 ⚠️). Dibangun karena rencana Tahap 1 secara eksplisit menyebut "Dreams:
+ * buat" sebagai cakupan — bukan tebakan bebas, tapi juga bukan port (tidak ada gaya acuan).
+ * Ditulis lewat RLS langsung (`wallets_write: can_see_child`), bukan route handler — beda
+ * dengan Sort/Move/Cash-out yang menyentuh ledger (0009 tidak membatasi `wallets`, hanya
+ * `ledger_entries`).
+ */
+function CreateWalletSheet({
+  category,
+  session,
+  onClose,
+  onCreated,
+}: {
+  category: 'spend' | 'save';
+  session: KidSession;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [target, setTarget] = useState('');
+  const [asDream, setAsDream] = useState(category === 'save');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (!name.trim()) return;
+    setBusy(true);
+    setError(null);
+    const client = supabaseForKid(session);
+    const { error: err } = await client.from('wallets').insert({
+      child_id: session.childId,
+      name: name.trim(),
+      category,
+      kind: category === 'spend' ? 'envelope' : asDream ? 'dream' : 'free_savings',
+      target_amount: category === 'save' && asDream && target ? parseRp(target) : null,
+    });
+    setBusy(false);
+    if (err) {
+      setError('That did not save. Try again.');
+      return;
+    }
+    onCreated();
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 60,
+        background: 'rgba(20,16,36,.4)',
+        display: 'flex',
+        alignItems: 'flex-end',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'var(--canvas)',
+          borderRadius: '28px 28px 0 0',
+          padding: '20px 18px 28px',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+      >
+        <div style={{ font: `700 18px var(--display)`, color: 'var(--ink)' }}>
+          {category === 'spend' ? 'New envelope' : 'New dream'}
+        </div>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={category === 'spend' ? 'e.g. Snacks' : 'e.g. BMX Bike'}
+          style={{
+            border: '1px solid var(--line)',
+            borderRadius: '13px',
+            padding: '12px 14px',
+            fontSize: '14px',
+            fontFamily: 'inherit',
+          }}
+        />
+        {category === 'save' ? (
+          <>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--ink)' }}>
+              <input type="checkbox" checked={asDream} onChange={(e) => setAsDream(e.target.checked)} />
+              Has a target amount
+            </label>
+            {asDream ? (
+              <input
+                value={target}
+                onChange={(e) => setTarget(formatRpInput(e.target.value))}
+                placeholder="Target, e.g. 300.000"
+                inputMode="numeric"
+                style={{
+                  border: '1px solid var(--line)',
+                  borderRadius: '13px',
+                  padding: '12px 14px',
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                }}
+              />
+            ) : null}
+          </>
+        ) : null}
+        {error ? <div style={{ fontSize: '12px', color: 'var(--loss)' }}>{error}</div> : null}
+        <button
+          onClick={submit}
+          disabled={!name.trim() || busy}
+          style={{
+            marginTop: '6px',
+            borderRadius: '16px',
+            padding: '15px',
+            fontWeight: 700,
+            fontSize: '14px',
+            color: '#fff',
+            background: name.trim() && !busy ? 'var(--brand)' : 'var(--disabled)',
+          }}
+        >
+          {busy ? '…' : 'Create'}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -290,9 +451,10 @@ function PocketCard({
   );
 }
 
-function DashedCard({ label }: { label: string }) {
+function DashedCard({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <div
+    <button
+      onClick={onClick}
       style={{
         border: '2px dashed var(--line)',
         borderRadius: '16px',
@@ -308,6 +470,6 @@ function DashedCard({ label }: { label: string }) {
       <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-soft)', textAlign: 'center', padding: '0 8px' }}>
         {label}
       </div>
-    </div>
+    </button>
   );
 }

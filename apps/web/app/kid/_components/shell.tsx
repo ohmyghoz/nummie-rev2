@@ -429,6 +429,213 @@ export function ProgressRing({
   );
 }
 
+/** Form primitif berulang di push screen uang — kid-mobile.source.jsx :1263-1283. */
+export function PickLabel({ text }: { text: string }) {
+  return <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)', margin: '4px 2px -4px' }}>{text}</div>;
+}
+
+export function SelectCard({
+  emoji,
+  name,
+  sub,
+  selected,
+  onClick,
+  accent,
+}: {
+  emoji: string;
+  name: string;
+  sub?: string;
+  selected: boolean;
+  onClick: () => void;
+  accent: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border: selected ? `2px solid ${accent}` : '1px solid var(--line)',
+        background: selected ? `${accent}14` : '#fff',
+        borderRadius: '15px',
+        padding: '12px 8px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '4px',
+      }}
+    >
+      <div style={{ fontSize: '22px' }}>{emoji}</div>
+      <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2, textAlign: 'center' }}>
+        {name}
+      </div>
+      {sub ? (
+        <div style={{ fontSize: '10px', color: selected ? accent : 'var(--ink-soft)', fontWeight: 600 }}>{sub}</div>
+      ) : null}
+    </button>
+  );
+}
+
+export function SelectRow({
+  emoji,
+  name,
+  desc,
+  selected,
+  onClick,
+  accent,
+  tint,
+}: {
+  emoji: string;
+  name: string;
+  desc: string;
+  selected: boolean;
+  onClick: () => void;
+  accent: string;
+  tint: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%',
+        border: selected ? `2px solid ${accent}` : '1px solid var(--line)',
+        background: selected ? tint : '#fff',
+        borderRadius: '16px',
+        padding: '14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        textAlign: 'left',
+      }}
+    >
+      <div
+        style={{
+          width: '42px',
+          height: '42px',
+          borderRadius: '13px',
+          background: selected ? '#fff' : 'var(--surface-2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '21px',
+          flex: 'none',
+        }}
+      >
+        {emoji}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--ink)' }}>{name}</div>
+        <div style={{ fontSize: '11px', color: 'var(--ink-soft)', marginTop: '1px' }}>{desc}</div>
+      </div>
+      <div
+        style={{
+          width: '22px',
+          height: '22px',
+          borderRadius: '999px',
+          border: `2px solid ${selected ? accent : 'var(--line)'}`,
+          background: selected ? accent : 'transparent',
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '12px',
+          flex: 'none',
+        }}
+      >
+        {selected ? '✓' : ''}
+      </div>
+    </button>
+  );
+}
+
+export function ChipToggle({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border: selected ? '1.5px solid var(--brand)' : '1px solid var(--line)',
+        background: selected ? 'var(--brand-tint)' : '#fff',
+        color: selected ? 'var(--brand-deep)' : 'var(--ink)',
+        borderRadius: '999px',
+        padding: '9px 15px',
+        fontSize: '12px',
+        fontWeight: 600,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function TextAreaField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={3}
+      style={{
+        width: '100%',
+        border: '1px solid var(--line)',
+        borderRadius: '14px',
+        padding: '13px',
+        fontSize: '12.5px',
+        fontFamily: 'inherit',
+        color: 'var(--ink)',
+        resize: 'none',
+        background: '#fff',
+      }}
+    />
+  );
+}
+
+/** Kartu nominal + stepper — dipakai Cash out/Move/Give/Buy FX (bentuk sama, sumber beda). */
+export function AmountCard({
+  amount,
+  color,
+  onMinus,
+  onPlus,
+  disMinus,
+  disPlus,
+}: {
+  amount: number;
+  color: string;
+  onMinus: () => void;
+  onPlus: () => void;
+  disMinus: boolean;
+  disPlus: boolean;
+}) {
+  return (
+    <div
+      style={{
+        background: '#fff',
+        borderRadius: '18px',
+        padding: '16px',
+        boxShadow: 'var(--sh-card)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}
+    >
+      <div style={{ font: `700 26px var(--display)`, color }}>Rp{amount.toLocaleString('id-ID')}</div>
+      <Stepper
+        value={amount}
+        onMinus={onMinus}
+        onPlus={onPlus}
+        disMinus={disMinus}
+        disPlus={disPlus}
+        render={(v) => `Rp${v.toLocaleString('id-ID')}`}
+      />
+    </div>
+  );
+}
+
 export function Toast({ message }: { message: string | null }) {
   if (!message) return null;
   return (

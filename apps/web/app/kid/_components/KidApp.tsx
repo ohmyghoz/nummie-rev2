@@ -6,10 +6,17 @@ import { loadKidData, type KidData } from '../../../lib/kid/data';
 import { Login } from './Login';
 import { HomeTab } from './HomeTab';
 import { WalletsTab } from './WalletsTab';
+import { MeTab } from './MeTab';
 import { SortScreen } from './SortScreen';
+import { MoveScreen } from './MoveScreen';
+import { CashoutScreen } from './CashoutScreen';
+import { GiveAwayScreen } from './GiveAwayScreen';
+import { RequestsScreen } from './RequestsScreen';
+import { HistoryScreen } from './HistoryScreen';
+import { MoneySheet } from './MoneySheet';
 import { BottomNav, ScrollArea, Toast, type KidTab } from './shell';
 
-type PushKey = 'sort' | 'move' | 'cashout' | 'requests' | 'history' | 'grow' | null;
+type PushKey = 'sort' | 'move' | 'cashout' | 'giveaway' | 'requests' | 'history' | 'grow' | null;
 
 /**
  * Root `/kid` — state machine tab/push/toast persis mockup (state-based, bukan
@@ -20,6 +27,7 @@ export function KidApp() {
   const [data, setData] = useState<KidData | null>(null);
   const [tab, setTab] = useState<KidTab>('home');
   const [push, setPush] = useState<PushKey>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -54,18 +62,19 @@ export function KidApp() {
     return <Login onSuccess={(s) => setSession(s)} />;
   }
 
+  function signOut() {
+    clearKidSession();
+    setSession(null);
+    setData(null);
+    setTab('home');
+    setPush(null);
+  }
+
   if (loadError) {
     return (
       <div style={{ padding: '40px 24px', textAlign: 'center' }}>
         <div style={{ fontSize: '14px', color: 'var(--loss)' }}>{loadError}</div>
-        <button
-          onClick={() => {
-            clearKidSession();
-            setSession(null);
-            setData(null);
-          }}
-          style={{ marginTop: '16px', color: 'var(--brand)', fontWeight: 700 }}
-        >
+        <button onClick={signOut} style={{ marginTop: '16px', color: 'var(--brand)', fontWeight: 700 }}>
           Sign out
         </button>
       </div>
@@ -80,50 +89,62 @@ export function KidApp() {
     void refresh(session as KidSession);
   }
 
+  function onMoved() {
+    setPush(null);
+    void refresh(session as KidSession);
+  }
+
   return (
     <div style={{ position: 'relative', minHeight: '100dvh', overflow: 'hidden', background: 'var(--canvas)' }}>
       <ScrollArea>
         {tab === 'home' ? <HomeTab data={data} onTab={setTab} onPush={(p) => setPush(p as PushKey)} /> : null}
-        {tab === 'wallets' ? <WalletsTab data={data} onPush={(p) => setPush(p as PushKey)} /> : null}
-        {tab === 'missions' ? <ComingSoon label="Missions" /> : null}
-        {tab === 'me' ? (
-          <ComingSoon
-            label="Me"
-            action={
-              <button
-                onClick={() => {
-                  clearKidSession();
-                  setSession(null);
-                  setData(null);
-                }}
-                style={{ marginTop: '12px', color: 'var(--brand)', fontWeight: 700, fontSize: '13px' }}
-              >
-                Sign out
-              </button>
-            }
+        {tab === 'wallets' ? (
+          <WalletsTab
+            data={data}
+            session={session}
+            onPush={(p) => setPush(p as PushKey)}
+            onChanged={() => void refresh(session as KidSession)}
           />
         ) : null}
+        {tab === 'missions' ? <ComingSoon label="Missions" /> : null}
+        {tab === 'me' ? <MeTab data={data} onSignOut={signOut} /> : null}
       </ScrollArea>
 
-      <BottomNav tab={tab} onTab={setTab} onMoney={() => setPush('move')} />
+      <BottomNav tab={tab} onTab={setTab} onMoney={() => setSheetOpen(true)} />
+
+      {sheetOpen ? (
+        <MoneySheet
+          data={data}
+          onClose={() => setSheetOpen(false)}
+          onPush={(p) => setPush(p as PushKey)}
+        />
+      ) : null}
 
       {push === 'sort' ? (
         <SortScreen data={data} session={session} onBack={() => setPush(null)} onDone={onPushDone} />
       ) : null}
-      {push === 'move' || push === 'cashout' || push === 'requests' || push === 'history' || push === 'grow' ? (
-        <ComingSoonPush label={push} onBack={() => setPush(null)} />
+      {push === 'move' ? (
+        <MoveScreen data={data} session={session} onBack={() => setPush(null)} onDone={onMoved} />
       ) : null}
+      {push === 'cashout' ? (
+        <CashoutScreen data={data} session={session} onBack={() => setPush(null)} onDone={onPushDone} />
+      ) : null}
+      {push === 'giveaway' ? (
+        <GiveAwayScreen data={data} session={session} onBack={() => setPush(null)} onDone={onPushDone} />
+      ) : null}
+      {push === 'requests' ? <RequestsScreen session={session} onBack={() => setPush(null)} /> : null}
+      {push === 'history' ? <HistoryScreen session={session} onBack={() => setPush(null)} /> : null}
+      {push === 'grow' ? <ComingSoonPush label="Grow" onBack={() => setPush(null)} /> : null}
 
       <Toast message={toast} />
     </div>
   );
 }
 
-function ComingSoon({ label, action }: { label: string; action?: React.ReactNode }) {
+function ComingSoon({ label }: { label: string }) {
   return (
     <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--ink-soft)', fontSize: '13px' }}>
       {label} — not built yet (Tahap 1 lanjutan).
-      {action}
     </div>
   );
 }
@@ -145,7 +166,7 @@ function ComingSoonPush({ label, onBack }: { label: string; onBack: () => void }
         textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: '13px', color: 'var(--ink-soft)' }}>{label} — not built yet.</div>
+      <div style={{ fontSize: '13px', color: 'var(--ink-soft)' }}>{label} — full simulation not built yet.</div>
       <button onClick={onBack} style={{ color: 'var(--brand)', fontWeight: 700, fontSize: '13px' }}>
         Back
       </button>
