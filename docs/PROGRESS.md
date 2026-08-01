@@ -13,9 +13,15 @@ selesai**, dan berkas ini bilang persis sejauh mana, termasuk yang genuinely mas
 > ujung dengan keluarga yang sebelumnya buntu total. Babak kedua: **Grow — Time Deposit** hidup
 > penuh (setor → ortu approve → bunga terkunci → panen dengan 3 pilihan) plus Bank rates,
 > Manage investments, dan Transactions di sisi ortu — empat bug nyata ditemukan & diperbaiki
-> lewat pengujian langsung, bukan cuma typecheck/test (lihat §3). Yang **masih genuinely
-> kosong**: Grow Gold/Forex (butuh `daily_prices` yang belum ada), Missions/Jobs/Prizes, dan
-> separuh layar Settings (Today's prices/Account/undang ortu kedua).
+> lewat pengujian langsung, bukan cuma typecheck/test (lihat §3). Babak ketiga: investigasi
+> menutup sisa daftar — **semua yang tersisa genuinely terhalang**, bukan sekadar belum sempat
+> (lihat §5): Grow Gold/Forex & Today's prices (`daily_prices` belum ada), Missions/Jobs/Prizes
+> (kurikulum belum ada — dan gerbangnya, `starsLifetime`, cuma bisa naik dari kurikulum, jadi
+> Jobs/Prizes akan permanen terkunci tanpa itu), undang ortu kedua (trigger sign-up 0020 selalu
+> membuat keluarga baru, belum ada jalur bergabung ke keluarga yang sudah ada), Insight (fitur
+> besar sendiri, bahkan mockup-nya sendiri memakai `demoWalk` — smoothing data demo — untuk
+> grafik alokasi, tanda ia belum didesain untuk data nyata). "Account" dicari di mockup babak
+> ini dan **tidak ada** — bukan belum dikerjakan, memang tidak pernah ada layarnya.
 
 ---
 
@@ -39,9 +45,9 @@ dipakai langsung oleh Grow di sisi anak) · **Manage investments** (baca-saja, p
 Time Deposit aktif dengan pokok/rate/sisa hari/status jatuh tempo; wallet yang masih menunggu
 approve sengaja disembunyikan, lihat §3) · **Transactions** (baca-saja, per anak — riwayat
 `ledger_entries` dengan filter rentang, sama pola dengan History anak).
-❌ Today's prices (edit manual, nunggu keputusan `daily_prices`) · Account (edit profil/lihat PIN
-masking — cek dulu apakah benar ada di mockup, tidak ketemu saat sesi ini mencari) · undang ortu
-kedua · Jobs/Prizes builder · Insight.
+❌ Today's prices (edit manual, nunggu keputusan `daily_prices`) · undang ortu kedua (§5) ·
+Jobs/Prizes builder (§5) · Insight (§5). ~~Account~~ — dicari di mockup, tidak ada; dicoret dari
+daftar, bukan ditunda.
 
 ## 2. Loop yang dibuktikan hidup ujung ke ujung
 
@@ -123,17 +129,57 @@ laporan sebelumnya):
 
 ## 5. Kenapa berhenti di sini, bukan "selesai semua"
 
-Grow Gold/Forex masih butuh keputusan produk dulu (§6). Missions/Jobs/Prizes butuh struktur
-kurikulum yang bukan sekadar port UI, itu konten. Keduanya lebih jujur ditinggal jelas-jelas
-kosong daripada dipalsukan supaya terlihat lengkap.
+Setelah Loop 4, sisa daftar Tahap 1/2 diperiksa satu per satu (bukan diasumsikan "tinggal
+porting") untuk memastikan tidak ada lagi yang genuinely bisa dikerjakan tanpa keputusan
+produk. Hasilnya:
+
+- **Grow Gold/Forex & Today's prices** — sama seperti sebelumnya: butuh `daily_prices` yang
+  tidak ada di skema maupun kode manapun.
+- **Missions (kurikulum)** — butuh konten pelajaran (chapters/quiz) sungguhan, bukan struktur
+  UI. Tidak ada jalan jujur untuk mem-port ini tanpa konten aslinya.
+- **Jobs/Prizes builder** — sekilas kelihatan aman dibangun (parent-authored, bukan konten
+  baku, dan `packages/core/src/jobs.ts`+`economy.ts` sudah ada & teruji). Tapi ditelusuri lebih
+  jauh: `choresUnlocked()` (economy.ts) menggerbang Jobs/Prizes di `starsLifetime >= 100`, dan
+  ⭐ **cuma** bisa didapat dari `earnStars()` yang dipanggil menyelesaikan chapter kurikulum
+  (`starsFromChapters`, missions.ts). Tanpa kurikulum, `starsLifetime` selamanya nol untuk
+  keluarga sungguhan mana pun — jadi membangun Jobs/Prizes sekarang berarti mengirim fitur yang
+  **tidak akan pernah bisa dibuka** siapa pun. Sama akarnya dengan Missions, bukan pekerjaan
+  terpisah.
+- **Undang ortu kedua** — diperiksa `handle_new_parent_signup()` (migrasi 0020): trigger ini
+  **selalu** membuat `families` baru untuk setiap `auth.users` baru, tanpa jalur "gabung ke
+  keluarga yang sudah ada". Membangun undangan sungguhan berarti mengubah trigger sign-up yang
+  dipakai SETIAP pendaftaran ortu (bukan cuma fitur ini) — beresiko tinggi kalau salah (ortu
+  baru bisa gagal dapat keluarga sama sekali), dan belum ada keputusan soal mekanismenya (email
+  invite lewat Admin API + metadata family_id, vs kode keluarga yang dipakai saat sign up
+  sendiri, mirip PIN anak). Bukan port, keputusan arsitektur.
+- **Insight** — dibaca penuh di mockup source (:343–450-an): sparkline tren saldo (rekonstruksi
+  dari delta ledger mundur), grafik alokasi antar kategori dari waktu ke waktu, perbandingan
+  periode-ke-periode, performa Grow. Fiturnya sendiri **memakai `demoWalk()`** — generator
+  smoothing data demo — untuk grafik alokasi, tanda mockup-nya sendiri belum didesain memakai
+  data nyata di bagian itu. Ini pekerjaan besar tersendiri yang pantas dapat sesi/keputusan
+  desainnya sendiri, bukan ditempel di ujung sesi yang sudah panjang.
+- **Account** — dicari di seluruh `parent-mobile.source.jsx` babak ini: tidak ada satu pun push
+  type atau referensi layar "Account"/"profil". Catatan di laporan-laporan sebelumnya soal
+  "Account (edit profil/PIN masking)" ternyata bukan dari mockup — dicoret dari daftar
+  sepenuhnya, bukan ditunda.
+
+Semua yang tersisa lebih jujur ditinggal jelas-jelas kosong (atau, untuk Account, dicoret sama
+sekali) daripada dipaksa jadi tanpa keputusan produk yang tepat, atau — untuk undang ortu kedua
+— tanpa mengambil resiko pada jalur sign-up yang dipakai semua orang.
 
 ## 6. Yang perlu Ghozy lakukan
 
 1. **Coba Loop 3 sendiri**: `bu-sinta-test2@nummi.local` / `nummi-parent-test-pw`, Settings →
    Bank rates, lalu masuk `/kid` sebagai Dinda (`246810`) → Grow → Time Deposit. Setelah approve,
    lihat "Manage investments" di kartu Dinda untuk melihat kesepakatannya.
-2. **Kalau lanjut nanti**: Grow Gold/Forex genuinely butuh keputusan produk dulu — dari mana
-   `daily_prices` diisi (manual ortu via Settings, seperti mockup gambarkan, atau feed otomatis
-   yang sengaja di-backlog)? — bukan cuma porting. Setelah itu, sisa pekerjaan terbuka:
-   Missions/Jobs/Prizes (butuh keputusan konten/kurikulum, bukan cuma UI), Today's prices,
-   Account (perlu dicek dulu apakah memang ada di mockup), undang ortu kedua, Insight.
+2. **Kalau lanjut nanti, empat keputusan produk yang menghalangi (§5), bukan sekadar "belum
+   sempat"**:
+   - `daily_prices` diisi dari mana (manual ortu via Settings, atau feed otomatis) — menggerbang
+     Grow Gold/Forex & Today's prices.
+   - Kurikulum (chapters/konten pelajaran) — menggerbang Missions **dan** Jobs/Prizes sekaligus
+     (⭐ lifetime cuma naik dari situ).
+   - Mekanisme undang ortu kedua (email invite + ubah trigger sign-up 0020, atau kode keluarga
+     saat sign up sendiri) — menyentuh jalur dipakai SEMUA pendaftaran ortu, bukan fitur berdiri
+     sendiri.
+   - Insight pantas jadi sesi/keputusan desainnya sendiri (grafik, rekonstruksi tren dari
+     ledger) — bukan pekerjaan "port" seperti yang lain.
