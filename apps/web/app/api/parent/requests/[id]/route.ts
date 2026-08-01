@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { approve, decline, markDone, talkAboutIt } from '@core/requests';
+import { tdHarvestOutcome, tenorRate, type Tenor } from '@core/grow';
 import type { Fulfilment, MoneyRequest, RequestStatus } from '@core/types';
 import { bearerFrom, supabaseService, verifyParentToken } from '../../../../../lib/parent/server';
 
@@ -8,10 +9,9 @@ import { bearerFrom, supabaseService, verifyParentToken } from '../../../../../l
  * packages/core/requests.ts. Ledger baru ditulis pada titik yang benar per jalur
  * (`postsLedgerOn`): instan (grow_in/harvest/mission_claim) saat approve, sisanya saat done.
  *
- * Sesi ini hanya melengkapi tulisan ledger untuk `cash_out` & `give_away` (satu-satunya yang
- * punya layar sisi anak yang sudah jalan). `grow_in`/`harvest`/`mission_claim` bisa
- * approve/decline/talk (statusnya berubah, diuji), tapi TIDAK menulis ledger/gem di sini —
- * itu bagian Grow/Missions penuh yang belum digarap (docs/PROGRESS.md).
+ * `mission_claim` masih belum menulis gem/ledger di sini — Missions penuh belum digarap
+ * (docs/PROGRESS.md). `grow_in`/`harvest` (Time Deposit saja — Gold/FX belum diport) SEKARANG
+ * menulis ledger sungguhan di sini, dijelaskan di bawah.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -29,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: row, error: fetchError } = await db
     .from('requests')
     .select(
-      'id,child_id,kind,amount,source_wallet_id,destination_wallet_id,status,fulfilment,fulfilment_story',
+      'id,child_id,kind,amount,source_wallet_id,destination_wallet_id,status,fulfilment,fulfilment_story,harvest_choice,grow_tenor_months',
     )
     .eq('id', id)
     .single();
@@ -87,7 +87,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq('id', id);
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
-  // Ledger hanya untuk cash_out/give_away, hanya saat benar-benar "done" (uang keluar dunia nyata).
+  // Ledger untuk cash_out/give_away hanya saat benar-benar "done" (uang keluar dunia nyata).
   if (body.action === 'done' && (row.kind === 'cash_out' || row.kind === 'give_away') && row.source_wallet_id) {
     const { error: ledgerError } = await db.from('ledger_entries').insert({
       child_id: row.child_id,
@@ -99,6 +99,127 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       created_by: identity.userId,
     });
     if (ledgerError) return NextResponse.json({ error: ledgerError.message }, { status: 500 });
+  }
+
+  // grow_in: jalur instan (INSTANT_KINDS) — ledger ditulis saat approve, bukan saat done.
+  // Membekukan tenorMonths/lockedRatePct/startedAt di wallet instrumen (migrasi 0014: kesepakatan
+  // deposito dikunci saat ortu menyetujui, bukan berubah kalau rate di Settings berubah nanti).
+  if (body.action === 'approve' && row.kind === 'grow_in' && row.source_wallet_id && row.destination_wallet_id) {
+    const [{ data: rates }, ledgerRes] = await Promise.all([
+      db.from('bank_rates').select('m3,m6,m12').eq('family_id', identity.familyId).maybeSingle(),
+      db.from('ledger_entries').insert({
+        child_id: row.child_id,
+        from_wallet_id: row.source_wallet_id,
+        to_wallet_id: row.destination_wallet_id,
+        amount: row.amount,
+        reason: 'grow_in',
+        request_id: row.id,
+        created_by: identity.userId,
+      }),
+    ]);
+    if (ledgerRes.error) return NextResponse.json({ error: ledgerRes.error.message }, { status: 500 });
+
+    if (row.grow_tenor_months) {
+      const tenor = row.grow_tenor_months as Tenor;
+      const prices = {
+        goldSellPerGram: 0,
+        goldBuybackPerGram: 0,
+        fxMid: {},
+        fxSpread: 0,
+        bankRates: { m3: Number(rates?.m3 ?? 0), m6: Number(rates?.m6 ?? 0), m12: Number(rates?.m12 ?? 0) },
+        updatedAt: new Date().toISOString(),
+      };
+      await db
+        .from('wallets')
+        .update({
+          tenor_months: tenor,
+          locked_rate_pct: tenorRate(tenor, prices),
+          started_at: new Date().toISOString().slice(0, 10),
+        })
+        .eq('id', row.destination_wallet_id);
+    }
+  }
+
+  // harvest (TD saja): pokok dari saldo nyata wallet instrumen (bukan dipercaya dari klien),
+  // bunga dari `locked_rate_pct` yang dibekukan saat approve grow_in di atas — TIDAK dihitung
+  // ulang dari rate Settings sekarang, itu justru yang dicegah pembekuan 0014.
+  if (body.action === 'approve' && row.kind === 'harvest' && row.source_wallet_id && row.destination_wallet_id) {
+    const [{ data: tdWallet }, { data: balanceRow }] = await Promise.all([
+      db.from('wallets').select('locked_rate_pct,tenor_months').eq('id', row.source_wallet_id).single(),
+      db.from('wallet_balances').select('balance').eq('wallet_id', row.source_wallet_id).maybeSingle(),
+    ]);
+    const principal = Number((balanceRow as { balance: number } | null)?.balance ?? 0);
+    const rate = Number(tdWallet?.locked_rate_pct ?? 0);
+    const interest = Math.floor((principal * rate) / 100);
+    const choice = (row.harvest_choice ?? 'cash_out') as 'cash_out' | 'roll_over' | 'take_profit';
+    const outcome = tdHarvestOutcome(principal, interest, choice);
+
+    // Bunga selalu "dibayar" ortu-sebagai-bank ke wallet TD dulu (uang masuk dari luar).
+    const inserts: Array<{
+      child_id: string;
+      from_wallet_id: string | null;
+      to_wallet_id: string | null;
+      amount: number;
+      reason: 'harvest';
+      request_id: string;
+      created_by: string;
+    }> = [];
+    if (interest > 0) {
+      inserts.push({
+        child_id: row.child_id,
+        from_wallet_id: null,
+        to_wallet_id: row.source_wallet_id,
+        amount: interest,
+        reason: 'harvest',
+        request_id: row.id,
+        created_by: identity.userId,
+      });
+    }
+    if (outcome.toSave > 0) {
+      inserts.push({
+        child_id: row.child_id,
+        from_wallet_id: row.source_wallet_id,
+        to_wallet_id: row.destination_wallet_id,
+        amount: outcome.toSave,
+        reason: 'harvest',
+        request_id: row.id,
+        created_by: identity.userId,
+      });
+    }
+    for (const entry of inserts) {
+      const { error: harvestError } = await db.from('ledger_entries').insert(entry);
+      if (harvestError) return NextResponse.json({ error: harvestError.message }, { status: 500 });
+    }
+
+    // roll_over/take_profit: kesepakatan baru mulai hari ini (tenor sama, rate mengikuti
+    // Settings terbaru saat renewal — beda dengan setoran baru yang menguncinya).
+    if (choice !== 'cash_out' && tdWallet?.tenor_months) {
+      const { data: currentRates } = await db
+        .from('bank_rates')
+        .select('m3,m6,m12')
+        .eq('family_id', identity.familyId)
+        .maybeSingle();
+      const renewalTenor = tdWallet.tenor_months as Tenor;
+      const renewalPrices = {
+        goldSellPerGram: 0,
+        goldBuybackPerGram: 0,
+        fxMid: {},
+        fxSpread: 0,
+        bankRates: {
+          m3: Number(currentRates?.m3 ?? 0),
+          m6: Number(currentRates?.m6 ?? 0),
+          m12: Number(currentRates?.m12 ?? 0),
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      await db
+        .from('wallets')
+        .update({
+          locked_rate_pct: tenorRate(renewalTenor, renewalPrices),
+          started_at: new Date().toISOString().slice(0, 10),
+        })
+        .eq('id', row.source_wallet_id);
+    }
   }
 
   return NextResponse.json({ ok: true, status: next.status, fulfilment: next.fulfilment });

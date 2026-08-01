@@ -96,9 +96,9 @@ export function CashoutScreen({
           amount={amount}
           color={src ? 'var(--ink)' : 'var(--line)'}
           onMinus={() => setAmount((a) => Math.max(0, a - step))}
-          onPlus={() => setAmount((a) => (a + step <= balance ? a + step : a))}
+          onPlus={() => setAmount((a) => Math.min(a + step, balance))}
           disMinus={amount <= 0}
-          disPlus={!src || amount + step > balance}
+          disPlus={!src || amount >= balance}
         />
         {src ? (
           <div style={{ fontSize: '10.5px', color: 'var(--ink-soft)', textAlign: 'right', marginTop: '-6px' }}>

@@ -131,9 +131,9 @@ export function MoveScreen({
               amount={amount}
               color="var(--ink)"
               onMinus={() => setAmount((a) => Math.max(0, a - step))}
-              onPlus={() => setAmount((a) => (a + step <= fromBalance ? a + step : a))}
+              onPlus={() => setAmount((a) => Math.min(a + step, fromBalance))}
               disMinus={amount <= 0}
-              disPlus={amount + step > fromBalance}
+              disPlus={amount >= fromBalance}
             />
           </>
         ) : null}

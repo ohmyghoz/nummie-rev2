@@ -40,9 +40,11 @@ export function SettingsScreen({
   const [wallets, setWallets] = useState<Wallet[] | null>(null);
   const [rules, setRules] = useState<MoneyRules | null>(null);
   const [allowance, setAllowance] = useState<AllowanceState>({ enabled: false, amount: 0, frequency: 'weekly', day: 1 });
+  const [rates, setRates] = useState({ m3: 0, m6: 0, m12: 0 });
   const [savingRules, setSavingRules] = useState(false);
   const [savingAllowance, setSavingAllowance] = useState(false);
   const [runningAllowance, setRunningAllowance] = useState(false);
+  const [savingRates, setSavingRates] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +54,8 @@ export function SettingsScreen({
       client.from('wallets').select('*').eq('child_id', childId).is('archived_at', null),
       client.from('money_rules').select('*').eq('child_id', childId).maybeSingle(),
       client.from('allowance_schedules').select('*').eq('child_id', childId).maybeSingle(),
-    ]).then(([walletsRes, rulesRes, allowRes]) => {
+      client.from('bank_rates').select('*').maybeSingle(),
+    ]).then(([walletsRes, rulesRes, allowRes, ratesRes]) => {
       setWallets(((walletsRes.data ?? []) as WalletRow[]).map(walletFromRow));
 
       const r = rulesRes.data as {
@@ -69,6 +72,9 @@ export function SettingsScreen({
 
       const a = allowRes.data as { enabled: boolean; amount: number; frequency: AllowanceFrequency; day: number } | null;
       if (a) setAllowance({ enabled: a.enabled, amount: a.amount, frequency: a.frequency, day: a.day });
+
+      const rt = ratesRes.data as { m3: number; m6: number; m12: number } | null;
+      if (rt) setRates({ m3: Number(rt.m3), m6: Number(rt.m6), m12: Number(rt.m12) });
     });
   }, [childId]);
 
@@ -139,6 +145,22 @@ export function SettingsScreen({
       return;
     }
     setMessage(`Sent ${formatRp(allowance.amount)} to ${childName}'s Unsorted.`);
+  }
+
+  async function saveRates() {
+    setSavingRates(true);
+    setError(null);
+    const res = await fetch('/api/parent/rates', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify(rates),
+    });
+    setSavingRates(false);
+    if (!res.ok) {
+      setError('That did not save. Try again.');
+      return;
+    }
+    setMessage(en.settings.saved);
   }
 
   return (
@@ -289,6 +311,30 @@ export function SettingsScreen({
           ) : null}
 
           <SaveButton onClick={saveRules} busy={savingRules} disabled={!validation.ok} label={en.settings.save} />
+        </Card>
+
+        {/* Bank rates — family-wide (bank_rates keyed by family_id, bukan child_id), dipakai
+            tdInterest() saat anak mengajukan/menerima Time Deposit (Grow). */}
+        <Card title={en.settings.ratesTitle}>
+          <div style={{ fontSize: '11.5px', color: 'var(--ink-soft)', lineHeight: 1.5, marginBottom: '10px' }}>
+            {en.settings.ratesHint}
+          </div>
+          {(['m3', 'm6', 'm12'] as const).map((key, i) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '8px 0', borderTop: i === 0 ? 'none' : '1px solid var(--line)' }}>
+              <span style={{ flex: 1, fontWeight: 700, fontSize: '13px' }}>{[3, 6, 12][i]} months</span>
+              <input
+                type="number"
+                value={rates[key] || ''}
+                onChange={(e) => setRates((r) => ({ ...r, [key]: Number(e.target.value) }))}
+                style={{ width: '70px', border: '1px solid var(--line)', borderRadius: '8px', padding: '6px', fontSize: '12px', textAlign: 'right' }}
+              />
+              <span style={{ fontSize: '12px', color: 'var(--ink-soft)' }}>%</span>
+            </div>
+          ))}
+          <div style={{ fontSize: '11px', color: 'var(--ink-soft)', marginTop: '8px', lineHeight: 1.4 }}>
+            {en.settings.oneTapApprove}
+          </div>
+          <SaveButton onClick={saveRates} busy={savingRates} label={en.settings.save} />
         </Card>
       </div>
     </div>

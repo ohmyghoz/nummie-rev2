@@ -104,9 +104,9 @@ export function GiveAwayScreen({
           amount={amount}
           color="var(--ink)"
           onMinus={() => setAmount((a) => Math.max(0, a - step))}
-          onPlus={() => setAmount((a) => (a + step <= giveBalance ? a + step : a))}
+          onPlus={() => setAmount((a) => Math.min(a + step, giveBalance))}
           disMinus={amount <= 0}
-          disPlus={amount + step > giveBalance}
+          disPlus={amount >= giveBalance}
         />
 
         <PickLabel text={cause === 'own' ? t.notePlaceholder : t.reasonLabel} />

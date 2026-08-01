@@ -13,6 +13,7 @@ import { CashoutScreen } from './CashoutScreen';
 import { GiveAwayScreen } from './GiveAwayScreen';
 import { RequestsScreen } from './RequestsScreen';
 import { HistoryScreen } from './HistoryScreen';
+import { GrowScreen } from './GrowScreens';
 import { MoneySheet } from './MoneySheet';
 import { BottomNav, ScrollArea, Toast, type KidTab } from './shell';
 
@@ -134,7 +135,9 @@ export function KidApp() {
       ) : null}
       {push === 'requests' ? <RequestsScreen session={session} onBack={() => setPush(null)} /> : null}
       {push === 'history' ? <HistoryScreen session={session} onBack={() => setPush(null)} /> : null}
-      {push === 'grow' ? <ComingSoonPush label="Grow" onBack={() => setPush(null)} /> : null}
+      {push === 'grow' ? (
+        <GrowScreen data={data} session={session} onBack={() => setPush(null)} onDone={onPushDone} />
+      ) : null}
 
       <Toast message={toast} />
     </div>
@@ -149,27 +152,3 @@ function ComingSoon({ label }: { label: string }) {
   );
 }
 
-function ComingSoonPush({ label, onBack }: { label: string; onBack: () => void }) {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'var(--canvas)',
-        zIndex: 50,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
-        padding: '24px',
-        textAlign: 'center',
-      }}
-    >
-      <div style={{ fontSize: '13px', color: 'var(--ink-soft)' }}>{label} — full simulation not built yet.</div>
-      <button onClick={onBack} style={{ color: 'var(--brand)', fontWeight: 700, fontSize: '13px' }}>
-        Back
-      </button>
-    </div>
-  );
-}
