@@ -14,7 +14,7 @@ selesai**, dan berkas ini bilang persis sejauh mana, termasuk yang genuinely mas
 > approve → bunga terkunci → panen dengan 3 pilihan), termasuk dua bug nyata yang ditemukan &
 > diperbaiki lewat pengujian langsung (lihat §3). Yang **masih genuinely kosong**: Grow
 > Gold/Forex (butuh `daily_prices` yang belum ada), Missions/Jobs/Prizes, dan separuh layar
-> Settings (Investments/Today's prices/Account/undang ortu kedua).
+> Settings (Today's prices/Account/undang ortu kedua).
 
 ---
 
@@ -34,10 +34,12 @@ ada.
 
 ✅ Sign up/in/reset · Onboarding · Dashboard · Approval inbox · Money rules editor · Allowance
 (jadwal + kirim sekarang, sungguhan) · Send/Take money · **Bank rates** (edit rate 3/6/12 bulan,
-dipakai langsung oleh Grow di sisi anak).
-❌ Investments (manage/harvest dari sisi ortu) · Today's prices (edit manual, nunggu keputusan
-`daily_prices`) · Account (edit profil/lihat PIN masking) · undang ortu kedua · Jobs/Prizes
-builder · Transactions (riwayat gabungan semua anak) · Insight.
+dipakai langsung oleh Grow di sisi anak) · **Manage investments** (baca-saja, per anak — daftar
+Time Deposit aktif dengan pokok/rate/sisa hari/status jatuh tempo; wallet yang masih menunggu
+approve sengaja disembunyikan, lihat §3).
+❌ Today's prices (edit manual, nunggu keputusan `daily_prices`) · Account (edit profil/lihat PIN
+masking) · undang ortu kedua · Jobs/Prizes builder · Transactions (riwayat gabungan semua anak) ·
+Insight.
 
 ## 2. Loop yang dibuktikan hidup ujung ke ujung
 
@@ -91,6 +93,14 @@ laporan sebelumnya):
   yang sama di keempat layar (dibuat sesi-sesi sebelumnya). Diperbaiki di keempatnya: klik "+"
   sekarang naik ke `min(jumlah + langkah, saldo)`, jadi klik terakhir selalu bisa mencapai
   seluruh saldo persis, bukan berhenti di kelipatan langkah.
+- **Bug nyata #4, ditemukan lewat pengujian UI langsung (Manage investments baru menunjukkan
+  "Rp0 · 0% · 0 months")**: `grow/buy` membuat wallet instrumen langsung saat anak mengajukan,
+  sebelum ortu approve — ada jendela waktu di mana wallet-nya ada tapi belum jadi kesepakatan
+  (`locked_rate_pct`/`started_at` masih kosong). Layar Manage investments (baru dibangun babak
+  ini) awalnya menampilkan semua wallet TD tanpa pengecualian, jadi permintaan yang masih
+  menunggu approve ikut muncul dengan angka kosong yang membingungkan. Diperbaiki: hanya
+  tampilkan wallet yang `startedAt`-nya sudah terisi (sudah benar-benar didanai); yang masih
+  menunggu tetap kelihatan di Requests, bukan di sini.
 
 ## 4. Keputusan yang diambil sendiri sesi ini (kumulatif, lihat juga laporan sebelumnya)
 
@@ -113,9 +123,10 @@ kosong daripada dipalsukan supaya terlihat lengkap.
 ## 6. Yang perlu Ghozy lakukan
 
 1. **Coba Loop 3 sendiri**: `bu-sinta-test2@nummi.local` / `nummi-parent-test-pw`, Settings →
-   Bank rates, lalu masuk `/kid` sebagai Dinda (`246810`) → Grow → Time Deposit.
+   Bank rates, lalu masuk `/kid` sebagai Dinda (`246810`) → Grow → Time Deposit. Setelah approve,
+   lihat "Manage investments" di kartu Dinda untuk melihat kesepakatannya.
 2. **Kalau lanjut nanti**: Grow Gold/Forex genuinely butuh keputusan produk dulu — dari mana
    `daily_prices` diisi (manual ortu via Settings, seperti mockup gambarkan, atau feed otomatis
    yang sengaja di-backlog)? — bukan cuma porting. Setelah itu, sisa pekerjaan terbuka:
-   Missions/Jobs/Prizes, Investments (sisi ortu), Today's prices, Account, undang ortu kedua,
-   Transactions gabungan, Insight.
+   Missions/Jobs/Prizes, Today's prices, Account, undang ortu kedua, Transactions gabungan,
+   Insight.

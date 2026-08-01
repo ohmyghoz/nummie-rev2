@@ -18,9 +18,10 @@ import { Onboarding } from './Onboarding';
 import { Dashboard } from './Dashboard';
 import { RequestsInbox } from './RequestsInbox';
 import { SettingsScreen } from './SettingsScreen';
+import { InvestmentsScreen } from './InvestmentsScreen';
 import { SendMoneyScreen, TakeMoneyScreen } from './SendTakeScreens';
 
-type View = 'dashboard' | 'requests' | 'settings' | 'send' | 'take';
+type View = 'dashboard' | 'requests' | 'settings' | 'send' | 'take' | 'investments';
 
 /** Root `/parent` — gerbang sesi Supabase Auth sungguhan, lalu family/children/requests. */
 export function ParentApp() {
@@ -120,6 +121,17 @@ export function ParentApp() {
     );
   }
 
+  if (view === 'investments' && targetChild) {
+    return (
+      <InvestmentsScreen
+        session={session}
+        childId={targetChild.id}
+        childName={targetChild.name}
+        onBack={() => setView('dashboard')}
+      />
+    );
+  }
+
   if (view === 'send' && targetChild) {
     return (
       <SendMoneyScreen
@@ -171,6 +183,10 @@ export function ParentApp() {
         onOpenTake={(id, name) => {
           setTargetChild({ id, name });
           setView('take');
+        }}
+        onOpenInvestments={(id, name) => {
+          setTargetChild({ id, name });
+          setView('investments');
         }}
       />
       {toast ? (
